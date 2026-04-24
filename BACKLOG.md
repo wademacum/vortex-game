@@ -203,8 +203,8 @@
   **İlerleme:**
   - Yapıldı: —
   - Yapılacak:
-    - [ ] Input System paketini ekle
-    - [ ] `InputActions.inputactions` asset oluştur
+    - [x] Input System paketini ekle
+    - [x] `InputActions.inputactions` asset oluştur
     - [x] `ShipController.cs` yaz
     - [x] `fourVelocity`'e itki ekleme mantığını entegre et
     - [x] `properTime == 0` iken itki kilidi ekle

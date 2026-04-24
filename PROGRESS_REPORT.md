@@ -36,6 +36,7 @@ Bu dosya, ajanin ilerlemeyi surekli takip etmesi icin resmi durum kaydidir.
 - EditMode dogrulama testleri eklendi: `Assets/Tests/Editor/CelestialBodyFactoryTests.cs` (same-seed/same-output, different-seed/different-output, no-matching-template throw).
 - Faz 1 Gv 7 test akisina yardimci debug arac eklendi: `Assets/Scripts/Debug/GeodesicOrbitTestRunner.cs` (dusuk/yuksek hiz presetleri, ProperTime freeze check, NaN/Infinity log guard).
 - Faz 1 Gv 8 kod omurgasi eklendi: `Assets/Scripts/Ship/ShipController.cs` (WASD/Space/Shift itki, `fourVelocity` entegrasyonu, `properTime == 0` kilidi) ve `Assets/Scripts/Ship/CameraFollow.cs` (smooth follow kamera).
+- Faz 1 Gv 8 bagimlilik/asset adimi tamamlandi: `Packages/manifest.json` icine `com.unity.inputsystem` eklendi ve `Assets/Settings/InputActions.inputactions` olusturuldu.
 
 ## BIR SONRAKI ADIMLAR (FAZ 1)
 1. Unity Editor icinde Faz 1 P0 dogrulamalari: tek cisim eliptik yörünge, same-seed manuel kontrol, Inspector freeze/restore akis testi.
