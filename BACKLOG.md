@@ -148,14 +148,14 @@
   - Yapıldı: —
   - Yapılacak:
     - [x] `GravityWellData` blittable struct yaz
-    - [ ] `GeodesicIntegrator` Job struct'ını yaz (IJobParallelFor)
-    - [ ] Christoffel sembollerini Schwarzschild metriği için kodla
+    - [x] `GeodesicIntegrator` Job struct'ını yaz (IJobParallelFor)
+    - [x] Christoffel sembollerini Schwarzschild metriği için kodla
     - [x] Hiz icin soft clamp (0.85c) ve hard clamp (0.95c) kurallarini implemente et
     - [x] Lorentz + kütle/mesafe carpanlari ile `localDeltaTime` hesapla
     - [x] RK4 adım fonksiyonunu yaz
-    - [ ] `[BurstCompile]` ekle ve derlemeyi doğrula
+    - [x] `[BurstCompile]` ekle ve derlemeyi doğrula
     - [x] `GeodesicSystem` MonoBehaviour ile Job'ları zamanla
-    - [ ] `TransformAccessArray` ile pozisyon güncellemesini entegre et
+    - [x] `TransformAccessArray` ile pozisyon güncellemesini entegre et
     - [ ] Tek cisim yörünge testi: eliptik yörünge çizmeli
     - [ ] Profiler testi: 50 cisim @ 60 FPS
 

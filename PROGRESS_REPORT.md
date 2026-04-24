@@ -3,9 +3,9 @@
 Bu dosya, ajanin ilerlemeyi surekli takip etmesi icin resmi durum kaydidir.
 
 ## GUNCEL DURUM OZETI
-- Tarih: 2026-04-24
+- Tarih: 2026-04-25
 - Aktif Faz: Faz 1 - Prosedurel Uretim Altyapisi + Cekirdek Fizik (Bkz: `BACKLOG.md` Faz 1)
-- Durum: Faz 1 P0 basladi (Gorev 1 kismen ilerliyor)
+- Durum: Faz 1 P0 ilerliyor (Geodesic job altyapisi ve deterministik factory testleri guncellendi)
 
 ## FAZ DURUM TABLOSU
 - Faz 1: Not Started
@@ -29,12 +29,17 @@ Bu dosya, ajanin ilerlemeyi surekli takip etmesi icin resmi durum kaydidir.
 - Play oncesi tahmini yörünge goruntuleme icin `TrajectoryPreview` eklendi (`ExecuteAlways`, baslangic hiz/pozisyonundan RK4 tahmini cizim, GravityWell etkisi ve yuzey temas cozumu ile).
 - `GravityWell` otomatik yaricap senkronu eklendi: `RendererBounds` / `TransformScale` / `Manual` modlari, runtime'da opsiyonel surekli sync ve prosedurel spawn icin `ApplyProceduralBody(mass, radius)` API'si.
 - Backlog netlestirildi: DynamicPlanet init akisina `ApplyProceduralBody(runtimeData.mass, runtimeData.radius)` baglama gorevi ve Marching Cubes meshinden `MeshCollider.sharedMesh` senkronu gorevi eklendi.
+- `GeodesicIntegrator` job tabanina tasindi: `[BurstCompile]` + `IJobParallelFor`, NativeArray tabanli state akisi, RK4 adimlamasi ve Schwarzschild Christoffel kaynakli duzeltme terimi eklendi.
+- `GeodesicSystem` Unity Job System akisina alindi: `NativeArray<GeodesicBodyStateData>` marshalling, `NativeArray<GravityWellData>` doldurma, `TransformAccessArray` ile paralel transform uygulama.
+- `GravityWellData` genisletildi: `physicalRadius` alani eklendi ve `GravityWell.ToData()` ile dolduruluyor.
+- `CelestialBodyFactory` backlog uyumlu RNG modeline gecti: `Unity.Mathematics.Random` ile deterministik ornekleme.
+- EditMode dogrulama testleri eklendi: `Assets/Tests/Editor/CelestialBodyFactoryTests.cs` (same-seed/same-output, different-seed/different-output, no-matching-template throw).
 
 ## BIR SONRAKI ADIMLAR (FAZ 1)
-1. Unity projesi icinde CelestialBodyTemplate veri semasini olustur (Bkz: `Architecture.md` 3.0).
-2. CelestialBodyFactory seeded random secim ve parameter sampling akislarini yaz (Bkz: `Architecture.md` 3.0.1 ve `PRD.md` 3.5).
-3. GravityWell, RelativisticBody ve GeodesicIntegrator cekirdegini kur (Bkz: `Architecture.md` 2.1-2.3 ve `PRD.md` 4.1-4.2).
-4. Orbit ve ProperTime freeze test sahnesi hazirla (Bkz: `BACKLOG.md` Faz 1 Gv 7 ve Faz 4 Gv 3).
+1. Unity Editor icinde Faz 1 P0 dogrulamalari: tek cisim eliptik yörünge, same-seed manuel kontrol, Inspector freeze/restore akis testi.
+2. `Assets/Scenes/Tests/GeodesicOrbitTest.unity` sahnesini kurup Faz 1 Gv 7 kabul kriterlerini tamamla (dusuk hiz Newton limiti, yuksek hiz presesyon, ProperTime freeze, NaN/Infinity kontrolu).
+3. Celestial body icin ornek `.asset` dosyalarini olusturup Inspector parametre setlerini doldur (`PlanetTemplate`, `BlackHoleTemplate` minimum set).
+4. Faz 1 kapisi icin profiler dogrulamasini yap (50 body hedefi, 60 FPS siniri).
 
 ## BLOKERLER
 - Teknik blokaj tanimli degil.

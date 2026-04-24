@@ -127,7 +127,8 @@ namespace Vortex.Physics
             {
                 position = transform.position,
                 mass = mass,
-                schwarzschildRadius = schwarzschildRadius
+                schwarzschildRadius = schwarzschildRadius,
+                physicalRadius = physicalRadius
             };
         }
 

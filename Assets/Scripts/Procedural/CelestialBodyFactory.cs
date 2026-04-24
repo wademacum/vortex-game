@@ -1,4 +1,5 @@
 using System;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace Vortex.Procedural
@@ -13,13 +14,13 @@ namespace Vortex.Procedural
             }
 
             int rngSeed = ToNonZeroSeed(seed);
-            System.Random rng = new System.Random(rngSeed);
+            Random rng = new Random((uint)rngSeed);
 
             CelestialBodyTemplate selected = SelectTemplate(type, pool, ref rng);
             return BuildRuntimeData(selected, ref rng);
         }
 
-        private static CelestialBodyTemplate SelectTemplate(BodyClass type, CelestialBodyTemplate[] pool, ref System.Random rng)
+        private static CelestialBodyTemplate SelectTemplate(BodyClass type, CelestialBodyTemplate[] pool, ref Random rng)
         {
             float totalWeight = 0f;
             for (int i = 0; i < pool.Length; i++)
@@ -38,7 +39,7 @@ namespace Vortex.Procedural
                 throw new InvalidOperationException($"No valid templates found for body type {type}.");
             }
 
-            float pick = NextFloat(rng, 0f, totalWeight);
+            float pick = NextFloat(ref rng, 0f, totalWeight);
             float cumulative = 0f;
 
             for (int i = 0; i < pool.Length; i++)
@@ -68,7 +69,7 @@ namespace Vortex.Procedural
             throw new InvalidOperationException($"Unable to select template for body type {type}.");
         }
 
-        private static RuntimeBodyData BuildRuntimeData(CelestialBodyTemplate template, ref System.Random rng)
+        private static RuntimeBodyData BuildRuntimeData(CelestialBodyTemplate template, ref Random rng)
         {
             return new RuntimeBodyData
             {
@@ -92,32 +93,37 @@ namespace Vortex.Procedural
             };
         }
 
-        private static float SampleRange(Vector2 range, ref System.Random rng)
+        private static float SampleRange(Vector2 range, ref Random rng)
         {
             float min = Mathf.Min(range.x, range.y);
             float max = Mathf.Max(range.x, range.y);
-            return NextFloat(rng, min, max);
+            return NextFloat(ref rng, min, max);
         }
 
-        private static float NextFloat(System.Random rng, float min, float max)
+        private static float NextFloat(ref Random rng, float min, float max)
         {
             if (max <= min)
             {
                 return min;
             }
 
-            double t = rng.NextDouble();
-            return min + (float)t * (max - min);
+            return rng.NextFloat(min, max);
         }
 
         private static int ToNonZeroSeed(int seed)
         {
-            if (seed == 0)
+            unchecked
             {
-                return 1;
-            }
+                // Unity.Mathematics.Random requires a non-zero uint seed.
+                uint raw = (uint)seed;
+                uint mixed = raw * 747796405u + 2891336453u;
+                if (mixed == 0u)
+                {
+                    mixed = 1u;
+                }
 
-            return seed;
+                return (int)mixed;
+            }
         }
     }
 }

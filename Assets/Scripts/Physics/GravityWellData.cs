@@ -7,5 +7,6 @@ namespace Vortex.Physics
         public Vector3 position;
         public float mass;
         public float schwarzschildRadius;
+        public float physicalRadius;
     }
 }
