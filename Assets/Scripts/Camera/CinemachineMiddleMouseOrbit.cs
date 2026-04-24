@@ -1,88 +1,90 @@
-using Cinemachine;
+using Unity.Cinemachine;
 using UnityEngine;
 
 namespace Vortex.CameraSystem
 {
+    /// <summary>
+    /// Drives a <see cref="CinemachineOrbitalFollow"/> rig with middle-mouse-button orbit input.
+    /// Requires Cinemachine 3.x – no deprecated FreeLook API used.
+    /// </summary>
     [DisallowMultipleComponent]
+    [RequireComponent(typeof(CinemachineCamera))]
     public sealed class CinemachineMiddleMouseOrbit : MonoBehaviour
     {
-        [SerializeField] private CinemachineFreeLook freeLook;
+        [SerializeField] private CinemachineOrbitalFollow orbitalFollow;
         [SerializeField, Min(0.1f)] private float distance = 8f;
-        [SerializeField] private float topHeight = 3.0f;
+        [SerializeField] private float topHeight    = 3.0f;
         [SerializeField] private float middleHeight = 1.7f;
         [SerializeField] private float bottomHeight = 0.5f;
-        [SerializeField, Min(1f)] private float xSensitivity = 180f;
+        [SerializeField, Min(1f)]   private float xSensitivity = 180f;
         [SerializeField, Min(0.1f)] private float ySensitivity = 1.2f;
         [SerializeField] private bool invertY = false;
 
         private void Reset()
         {
-            freeLook = GetComponent<CinemachineFreeLook>();
+            orbitalFollow = GetComponent<CinemachineOrbitalFollow>();
         }
 
         private void Awake()
         {
-            if (freeLook == null)
-            {
-                freeLook = GetComponent<CinemachineFreeLook>();
-            }
+            if (orbitalFollow == null)
+                orbitalFollow = GetComponent<CinemachineOrbitalFollow>();
 
-            if (freeLook == null)
+            if (orbitalFollow == null)
             {
+                Debug.LogWarning($"[{nameof(CinemachineMiddleMouseOrbit)}] No CinemachineOrbitalFollow found – disabling.", this);
                 enabled = false;
                 return;
             }
 
-            // Disable built-in axis names to prevent drift from legacy axes/devices.
-            freeLook.m_XAxis.m_InputAxisName = string.Empty;
-            freeLook.m_YAxis.m_InputAxisName = string.Empty;
-            freeLook.m_BindingMode = CinemachineTransposer.BindingMode.WorldSpace;
+            // Let this script own all axis input; disable the automatic controller if present.
+            var inputController = GetComponent<CinemachineInputAxisController>();
+            if (inputController != null)
+                inputController.enabled = false;
 
             ApplyOrbitPreset();
         }
 
         private void OnValidate()
         {
-            if (freeLook == null)
-            {
-                freeLook = GetComponent<CinemachineFreeLook>();
-            }
+            if (orbitalFollow == null)
+                orbitalFollow = GetComponent<CinemachineOrbitalFollow>();
 
-            if (freeLook != null)
-            {
+            if (orbitalFollow != null)
                 ApplyOrbitPreset();
-            }
         }
 
         private void LateUpdate()
         {
-            if (freeLook == null)
-            {
+            if (orbitalFollow == null || !Input.GetMouseButton(2))
                 return;
-            }
 
-            if (!Input.GetMouseButton(2))
-            {
-                return;
-            }
-
-            float dt = Mathf.Max(Time.unscaledDeltaTime, 0.0001f);
+            float dt     = Mathf.Max(Time.unscaledDeltaTime, 0.0001f);
             float mouseX = Input.GetAxisRaw("Mouse X");
             float mouseY = Input.GetAxisRaw("Mouse Y");
 
-            freeLook.m_XAxis.Value += mouseX * xSensitivity * dt;
+            // Horizontal axis wraps freely – no clamping needed.
+            orbitalFollow.HorizontalAxis.Value += mouseX * xSensitivity * dt;
 
+            // Vertical axis is clamped to the axis's own [min, max] range.
             float yDelta = mouseY * ySensitivity * dt;
-            freeLook.m_YAxis.Value = Mathf.Clamp01(
-                freeLook.m_YAxis.Value + (invertY ? yDelta : -yDelta));
+            float newY   = orbitalFollow.VerticalAxis.Value + (invertY ? yDelta : -yDelta);
+            orbitalFollow.VerticalAxis.Value = Mathf.Clamp(
+                newY,
+                orbitalFollow.VerticalAxis.Range.x,
+                orbitalFollow.VerticalAxis.Range.y);
         }
 
         private void ApplyOrbitPreset()
         {
-            float clampedDistance = Mathf.Max(0.1f, distance);
-            freeLook.m_Orbits[0] = new CinemachineFreeLook.Orbit(topHeight, clampedDistance * 0.95f);
-            freeLook.m_Orbits[1] = new CinemachineFreeLook.Orbit(middleHeight, clampedDistance);
-            freeLook.m_Orbits[2] = new CinemachineFreeLook.Orbit(bottomHeight, clampedDistance * 0.9f);
+            orbitalFollow.OrbitStyle = CinemachineOrbitalFollow.OrbitStyles.ThreeRing;
+            float d = Mathf.Max(0.1f, distance);
+            orbitalFollow.Orbits = new Cinemachine3OrbitRig.Settings
+            {
+                Top    = new Cinemachine3OrbitRig.Orbit { Height = topHeight,    Radius = d * 0.95f },
+                Center = new Cinemachine3OrbitRig.Orbit { Height = middleHeight, Radius = d        },
+                Bottom = new Cinemachine3OrbitRig.Orbit { Height = bottomHeight, Radius = d * 0.9f },
+            };
         }
     }
 }
