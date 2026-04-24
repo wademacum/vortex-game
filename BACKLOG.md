@@ -205,10 +205,10 @@
   - Yapılacak:
     - [ ] Input System paketini ekle
     - [ ] `InputActions.inputactions` asset oluştur
-    - [ ] `ShipController.cs` yaz
-    - [ ] `fourVelocity`'e itki ekleme mantığını entegre et
-    - [ ] `properTime == 0` iken itki kilidi ekle
-    - [ ] `CameraFollow.cs` yaz
+    - [x] `ShipController.cs` yaz
+    - [x] `fourVelocity`'e itki ekleme mantığını entegre et
+    - [x] `properTime == 0` iken itki kilidi ekle
+    - [x] `CameraFollow.cs` yaz
     - [ ] Sahne testi: geodezikten çık/geri dön
 
 ---
