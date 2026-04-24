@@ -172,6 +172,7 @@
   **Kodlanacaklar:**
   - `Assets/Scenes/Tests/GeodesicOrbitTest.unity` (sahne)
   - `Assets/Scripts/Debug/OrbitVisualizer.cs` (LineRenderer wrapper)
+  - `Assets/Scripts/Debug/GeodesicOrbitTestRunner.cs` (senaryo presetleri + freeze/NaN kontrol yardimcisi)
 
   **İlerleme:**
   - Yapıldı: —

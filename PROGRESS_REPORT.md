@@ -34,6 +34,7 @@ Bu dosya, ajanin ilerlemeyi surekli takip etmesi icin resmi durum kaydidir.
 - `GravityWellData` genisletildi: `physicalRadius` alani eklendi ve `GravityWell.ToData()` ile dolduruluyor.
 - `CelestialBodyFactory` backlog uyumlu RNG modeline gecti: `Unity.Mathematics.Random` ile deterministik ornekleme.
 - EditMode dogrulama testleri eklendi: `Assets/Tests/Editor/CelestialBodyFactoryTests.cs` (same-seed/same-output, different-seed/different-output, no-matching-template throw).
+- Faz 1 Gv 7 test akisina yardimci debug arac eklendi: `Assets/Scripts/Debug/GeodesicOrbitTestRunner.cs` (dusuk/yuksek hiz presetleri, ProperTime freeze check, NaN/Infinity log guard).
 
 ## BIR SONRAKI ADIMLAR (FAZ 1)
 1. Unity Editor icinde Faz 1 P0 dogrulamalari: tek cisim eliptik yörünge, same-seed manuel kontrol, Inspector freeze/restore akis testi.
