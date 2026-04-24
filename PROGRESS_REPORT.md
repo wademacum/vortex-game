@@ -37,6 +37,7 @@ Bu dosya, ajanin ilerlemeyi surekli takip etmesi icin resmi durum kaydidir.
 - Faz 1 Gv 7 test akisina yardimci debug arac eklendi: `Assets/Scripts/Debug/GeodesicOrbitTestRunner.cs` (dusuk/yuksek hiz presetleri, ProperTime freeze check, NaN/Infinity log guard).
 - Faz 1 Gv 8 kod omurgasi eklendi: `Assets/Scripts/Ship/ShipController.cs` (WASD/Space/Shift itki, `fourVelocity` entegrasyonu, `properTime == 0` kilidi) ve `Assets/Scripts/Ship/CameraFollow.cs` (smooth follow kamera).
 - Faz 1 Gv 8 bagimlilik/asset adimi tamamlandi: `Packages/manifest.json` icine `com.unity.inputsystem` eklendi ve `Assets/Settings/InputActions.inputactions` olusturuldu.
+- Faz 1 Gv 6-7 manuel testlerini hizlandirmak icin `Assets/Scripts/Debug/GeodesicTestHarness.cs` eklendi (tek cisim dairesel yörünge baslangici ve 50 cisim stres senaryosu kurulum yardimcisi).
 
 ## BIR SONRAKI ADIMLAR (FAZ 1)
 1. Unity Editor icinde Faz 1 P0 dogrulamalari: tek cisim eliptik yörünge, same-seed manuel kontrol, Inspector freeze/restore akis testi.

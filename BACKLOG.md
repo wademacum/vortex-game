@@ -173,6 +173,7 @@
   - `Assets/Scenes/Tests/GeodesicOrbitTest.unity` (sahne)
   - `Assets/Scripts/Debug/OrbitVisualizer.cs` (LineRenderer wrapper)
   - `Assets/Scripts/Debug/GeodesicOrbitTestRunner.cs` (senaryo presetleri + freeze/NaN kontrol yardimcisi)
+  - `Assets/Scripts/Debug/GeodesicTestHarness.cs` (tek-cisim yörünge kurulumu + 50 cisim stres spawn yardimcisi)
 
   **İlerleme:**
   - Yapıldı: —
