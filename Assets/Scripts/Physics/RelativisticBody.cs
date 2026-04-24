@@ -13,7 +13,26 @@ namespace Vortex.Physics
         [SerializeField] private Vector3 sphericalPosition;
         [SerializeField] private Vector4 fourVelocity;
 
+        [Header("Mass")]
+        [SerializeField, Min(0.001f)] private float inertialMass = 1f;
+        [SerializeField, Min(0f)] private float gravitationalMass = 1f;
+        [SerializeField] private bool contributesToGravity = false;
+
+        [Header("Collision Response")]
+        [SerializeField, Min(0f)] private float collisionSpinScale = 1f;
+        [SerializeField, Min(0f)] private float collisionSpinImpulseScale = 90f;
+        [SerializeField, Range(0f, 1f)] private float angularDampingPerFixedStep = 0.985f;
+
+        [Header("Rendering")]
+        [SerializeField] private bool interpolateRenderTransform = true;
+
         private float cachedProperTime = 1f;
+        private Collider cachedCollider;
+        private Vector3 previousPhysicsPosition;
+        private Vector3 currentPhysicsPosition;
+        private Quaternion previousPhysicsRotation;
+        private Quaternion currentPhysicsRotation;
+        private Vector3 angularVelocityDegPerSec;
 
         public float ProperTime => properTime;
         public float LocalDeltaTime => localDeltaTime;
@@ -31,17 +50,40 @@ namespace Vortex.Physics
         }
 
         public bool IsTimeFrozen => properTime <= 0f;
+        public Collider BodyCollider => cachedCollider;
+        public float CollisionSpinScale => collisionSpinScale;
+        public float CollisionSpinImpulseScale => collisionSpinImpulseScale;
+        public float AngularDampingPerFixedStep => angularDampingPerFixedStep;
+        public float InertialMass => Mathf.Max(0.001f, inertialMass);
+        public float GravitationalMass => Mathf.Max(0f, gravitationalMass);
+        public bool ContributesToGravity => contributesToGravity && GravitationalMass > 0f;
+        public Vector3 PhysicsPosition => currentPhysicsPosition;
+        public Quaternion PhysicsRotation => currentPhysicsRotation;
+        public Vector3 AngularVelocityDegPerSec
+        {
+            get => angularVelocityDegPerSec;
+            set => angularVelocityDegPerSec = value;
+        }
 
         private void Awake()
         {
             EnsureNoRigidbody();
+            CacheCollider();
             properTime = Mathf.Clamp01(properTime);
             cachedProperTime = properTime > 0f ? properTime : 1f;
+            InitializePhysicsStateFromTransform();
         }
 
         private void OnValidate()
         {
             properTime = Mathf.Clamp01(properTime);
+            inertialMass = Mathf.Max(0.001f, inertialMass);
+            gravitationalMass = Mathf.Max(0f, gravitationalMass);
+            collisionSpinScale = Mathf.Max(0f, collisionSpinScale);
+            collisionSpinImpulseScale = Mathf.Max(0f, collisionSpinImpulseScale);
+            angularDampingPerFixedStep = Mathf.Clamp01(angularDampingPerFixedStep);
+            CacheCollider();
+            InitializePhysicsStateFromTransform();
             if (properTime > 0f)
             {
                 cachedProperTime = properTime;
@@ -60,7 +102,21 @@ namespace Vortex.Physics
         private void Update()
         {
             coordinateTime += Time.deltaTime;
-            localDeltaTime = Time.deltaTime * properTime;
+        }
+
+        private void LateUpdate()
+        {
+            if (!Application.isPlaying || !interpolateRenderTransform)
+            {
+                transform.SetPositionAndRotation(currentPhysicsPosition, currentPhysicsRotation);
+                return;
+            }
+
+            float fixedDt = Mathf.Max(Time.fixedDeltaTime, PhysicsConstants.IntegrationEpsilon);
+            float alpha = Mathf.Clamp01((Time.time - Time.fixedTime) / fixedDt);
+            Vector3 renderPosition = Vector3.Lerp(previousPhysicsPosition, currentPhysicsPosition, alpha);
+            Quaternion renderRotation = Quaternion.Slerp(previousPhysicsRotation, currentPhysicsRotation, alpha);
+            transform.SetPositionAndRotation(renderPosition, renderRotation);
         }
 
         public void FreezeProperTime()
@@ -105,6 +161,24 @@ namespace Vortex.Physics
             localDeltaTime = Mathf.Max(0f, value);
         }
 
+        public void SetAngularVelocity(Vector3 value)
+        {
+            angularVelocityDegPerSec = value;
+        }
+
+        public void SetPhysicsState(Vector3 position, Quaternion rotation, Vector4 nextFourVelocity)
+        {
+            previousPhysicsPosition = currentPhysicsPosition;
+            previousPhysicsRotation = currentPhysicsRotation;
+
+            currentPhysicsPosition = position;
+            currentPhysicsRotation = rotation;
+
+            transform.SetPositionAndRotation(position, rotation);
+            sphericalPosition = CartesianToSpherical(position);
+            fourVelocity = nextFourVelocity;
+        }
+
         private void EnsureNoRigidbody()
         {
             Rigidbody rb3D = GetComponent<Rigidbody>();
@@ -120,6 +194,35 @@ namespace Vortex.Physics
             {
                 rb2D.simulated = false;
             }
+        }
+
+        private void CacheCollider()
+        {
+            if (cachedCollider == null)
+            {
+                cachedCollider = GetComponent<Collider>();
+            }
+        }
+
+        private void InitializePhysicsStateFromTransform()
+        {
+            previousPhysicsPosition = transform.position;
+            currentPhysicsPosition = transform.position;
+            previousPhysicsRotation = transform.rotation;
+            currentPhysicsRotation = transform.rotation;
+        }
+
+        private static Vector3 CartesianToSpherical(Vector3 p)
+        {
+            float r = p.magnitude;
+            if (r <= PhysicsConstants.IntegrationEpsilon)
+            {
+                return Vector3.zero;
+            }
+
+            float theta = Mathf.Acos(Mathf.Clamp(p.y / r, -1f, 1f));
+            float phi = Mathf.Atan2(p.z, p.x);
+            return new Vector3(r, theta, phi);
         }
     }
 }

@@ -7,6 +7,12 @@ namespace Vortex.Physics
     {
         [SerializeField] private bool autoCollectBodies = true;
         [SerializeField] private List<RelativisticBody> bodies = new List<RelativisticBody>();
+        [SerializeField] private bool pauseSimulationWhenUnfocused = true;
+        [SerializeField] private bool pauseSimulationWhenUnfocusedInEditor = false;
+        [SerializeField, Min(0)] private int settleFixedStepsAfterFocusReturn = 2;
+
+        private bool hasFocus = true;
+        private int focusSettleStepsRemaining;
 
         private void Start()
         {
@@ -18,6 +24,17 @@ namespace Vortex.Physics
 
         private void FixedUpdate()
         {
+            if (ShouldPauseForFocusLoss())
+            {
+                return;
+            }
+
+            if (focusSettleStepsRemaining > 0)
+            {
+                focusSettleStepsRemaining--;
+                return;
+            }
+
             if (autoCollectBodies)
             {
                 RemoveNullBodies();
@@ -34,8 +51,41 @@ namespace Vortex.Physics
                     continue;
                 }
 
-                GeodesicIntegrator.Integrate(body, wells, dt);
+                GeodesicIntegrator.Integrate(body, wells, bodies, dt);
             }
+        }
+
+        private void OnApplicationFocus(bool focus)
+        {
+            hasFocus = focus;
+            if (focus)
+            {
+                focusSettleStepsRemaining = Mathf.Max(0, settleFixedStepsAfterFocusReturn);
+            }
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            hasFocus = !paused;
+            if (!paused)
+            {
+                focusSettleStepsRemaining = Mathf.Max(0, settleFixedStepsAfterFocusReturn);
+            }
+        }
+
+        private bool ShouldPauseForFocusLoss()
+        {
+            if (!pauseSimulationWhenUnfocused || hasFocus)
+            {
+                return false;
+            }
+
+            if (Application.isEditor && !pauseSimulationWhenUnfocusedInEditor)
+            {
+                return false;
+            }
+
+            return true;
         }
 
         public void RefreshBodies()

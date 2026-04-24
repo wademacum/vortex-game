@@ -327,24 +327,12 @@ namespace Vortex.Debugging
                     continue;
                 }
 
-                float contactRadius = Mathf.Max(well.PhysicalRadius, well.SchwarzschildRadius + PhysicsConstants.IntegrationEpsilon);
-                if (contactRadius <= PhysicsConstants.IntegrationEpsilon)
+                if (!well.TryResolveSurfaceContact(position, out Vector3 resolvedPosition, out Vector3 normal))
                 {
                     continue;
                 }
 
-                Vector3 fromCenter = position - well.transform.position;
-                float distance = fromCenter.magnitude;
-                if (distance >= contactRadius)
-                {
-                    continue;
-                }
-
-                Vector3 normal = distance > PhysicsConstants.IntegrationEpsilon
-                    ? fromCenter / distance
-                    : Vector3.up;
-
-                position = well.transform.position + normal * contactRadius;
+                position = resolvedPosition;
 
                 float radialSpeed = Vector3.Dot(velocity, normal);
                 if (radialSpeed < 0f)

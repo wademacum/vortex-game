@@ -16,6 +16,8 @@ namespace Vortex.Physics
         [SerializeField, Min(0f)] private float mass = 88200f;
         [SerializeField, Min(0f)] private float physicalRadius = 200f;
         [SerializeField] private bool enableSurfaceCollision = false;
+        [SerializeField] private Collider surfaceCollider;
+        [SerializeField] private bool autoAssignSurfaceCollider = true;
 
         [Header("Radius Sync")]
         [SerializeField] private RadiusSyncMode radiusSyncMode = RadiusSyncMode.RendererBounds;
@@ -29,9 +31,11 @@ namespace Vortex.Physics
         public float PhysicalRadius => physicalRadius;
         public float SchwarzschildRadius => schwarzschildRadius;
         public bool EnableSurfaceCollision => enableSurfaceCollision;
+        public Collider SurfaceCollider => surfaceCollider;
 
         private void Awake()
         {
+            TryAutoAssignSurfaceCollider();
             SyncRadiusFromVisualIfNeeded();
             Recalculate();
         }
@@ -63,6 +67,7 @@ namespace Vortex.Physics
 
         private void OnValidate()
         {
+            TryAutoAssignSurfaceCollider();
             SyncRadiusFromVisualIfNeeded();
             Recalculate();
         }
@@ -72,6 +77,42 @@ namespace Vortex.Physics
             mass = Mathf.Max(0f, generatedMass);
             physicalRadius = Mathf.Max(0f, generatedRadius);
             Recalculate();
+        }
+
+        public bool TryResolveSurfaceContact(Vector3 position, out Vector3 resolvedPosition, out Vector3 surfaceNormal)
+        {
+            resolvedPosition = position;
+            surfaceNormal = Vector3.up;
+
+            if (!enableSurfaceCollision)
+            {
+                return false;
+            }
+
+            if (surfaceCollider != null)
+            {
+                return TryResolveSurfaceContactWithCollider(position, out resolvedPosition, out surfaceNormal);
+            }
+
+            return TryResolveSurfaceContactWithRadius(position, out resolvedPosition, out surfaceNormal);
+        }
+
+        public bool TryResolveSurfaceContact(Collider bodyCollider, Quaternion bodyRotation, Vector3 bodyPosition, out Vector3 resolvedPosition, out Vector3 surfaceNormal)
+        {
+            resolvedPosition = bodyPosition;
+            surfaceNormal = Vector3.up;
+
+            if (!enableSurfaceCollision)
+            {
+                return false;
+            }
+
+            if (surfaceCollider != null && bodyCollider != null)
+            {
+                return TryResolveSurfaceContactWithCollider(bodyCollider, bodyRotation, bodyPosition, out resolvedPosition, out surfaceNormal);
+            }
+
+            return TryResolveSurfaceContact(bodyPosition, out resolvedPosition, out surfaceNormal);
         }
 
         public void RefreshRadiusFromVisual()
@@ -105,6 +146,114 @@ namespace Vortex.Physics
 
             float maxAllowed = Mathf.Max(0f, physicalRadius - 10f);
             schwarzschildRadius = Mathf.Min(rs, maxAllowed);
+        }
+
+        private void TryAutoAssignSurfaceCollider()
+        {
+            if (!autoAssignSurfaceCollider || surfaceCollider != null)
+            {
+                return;
+            }
+
+            surfaceCollider = GetComponentInChildren<MeshCollider>();
+            if (surfaceCollider == null)
+            {
+                surfaceCollider = GetComponentInChildren<Collider>();
+            }
+        }
+
+        private bool TryResolveSurfaceContactWithCollider(Vector3 position, out Vector3 resolvedPosition, out Vector3 surfaceNormal)
+        {
+            resolvedPosition = position;
+            surfaceNormal = Vector3.up;
+
+            Vector3 center = transform.position;
+            Vector3 radial = position - center;
+            if (radial.sqrMagnitude <= PhysicsConstants.IntegrationEpsilon)
+            {
+                radial = Vector3.up;
+            }
+
+            Vector3 radialDirection = radial.normalized;
+            float probeDistance = Mathf.Max(physicalRadius * 4f, 1f);
+            Vector3 outsideProbe = center + radialDirection * probeDistance;
+            Vector3 surfacePoint = surfaceCollider.ClosestPoint(outsideProbe);
+
+            float pointRadial = Vector3.Dot(position - center, radialDirection);
+            float surfaceRadial = Vector3.Dot(surfacePoint - center, radialDirection);
+            if (pointRadial >= surfaceRadial)
+            {
+                return false;
+            }
+
+            Vector3 normal = outsideProbe - surfacePoint;
+            if (normal.sqrMagnitude <= PhysicsConstants.IntegrationEpsilon)
+            {
+                normal = radialDirection;
+            }
+            else
+            {
+                normal.Normalize();
+            }
+
+            resolvedPosition = surfacePoint + normal * PhysicsConstants.SurfaceContactOffset;
+            surfaceNormal = normal;
+            return true;
+        }
+
+        private bool TryResolveSurfaceContactWithCollider(Collider bodyCollider, Quaternion bodyRotation, Vector3 bodyPosition, out Vector3 resolvedPosition, out Vector3 surfaceNormal)
+        {
+            resolvedPosition = bodyPosition;
+            surfaceNormal = Vector3.up;
+
+                if (!UnityEngine.Physics.ComputePenetration(
+                    bodyCollider,
+                    bodyPosition,
+                    bodyRotation,
+                    surfaceCollider,
+                    surfaceCollider.transform.position,
+                    surfaceCollider.transform.rotation,
+                    out Vector3 direction,
+                    out float distance))
+            {
+                return false;
+            }
+
+            if (distance <= PhysicsConstants.IntegrationEpsilon)
+            {
+                return false;
+            }
+
+            resolvedPosition = bodyPosition + direction * (distance + PhysicsConstants.SurfaceContactOffset);
+            surfaceNormal = direction;
+            return true;
+        }
+
+        private bool TryResolveSurfaceContactWithRadius(Vector3 position, out Vector3 resolvedPosition, out Vector3 surfaceNormal)
+        {
+            resolvedPosition = position;
+            surfaceNormal = Vector3.up;
+
+            float contactRadius = Mathf.Max(physicalRadius, schwarzschildRadius + PhysicsConstants.IntegrationEpsilon);
+            if (contactRadius <= PhysicsConstants.IntegrationEpsilon)
+            {
+                return false;
+            }
+
+            Vector3 fromCenter = position - transform.position;
+            float distance = fromCenter.magnitude;
+            if (distance >= contactRadius)
+            {
+                return false;
+            }
+
+            Vector3 normal = distance > PhysicsConstants.IntegrationEpsilon
+                ? fromCenter / distance
+                : Vector3.up;
+
+            resolvedPosition = transform.position + normal * (contactRadius + PhysicsConstants.SurfaceContactOffset);
+            surfaceNormal = normal;
+            return true;
         }
 
         private void SyncRadiusFromVisualIfNeeded()
