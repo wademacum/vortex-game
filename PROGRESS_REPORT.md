@@ -38,12 +38,25 @@ Bu dosya, ajanin ilerlemeyi surekli takip etmesi icin resmi durum kaydidir.
 - Faz 1 Gv 8 kod omurgasi eklendi: `Assets/Scripts/Ship/ShipController.cs` (WASD/Space/Shift itki, `fourVelocity` entegrasyonu, `properTime == 0` kilidi) ve `Assets/Scripts/Ship/CameraFollow.cs` (smooth follow kamera).
 - Faz 1 Gv 8 bagimlilik/asset adimi tamamlandi: `Packages/manifest.json` icine `com.unity.inputsystem` eklendi ve `Assets/Settings/InputActions.inputactions` olusturuldu.
 - Faz 1 Gv 6-7 manuel testlerini hizlandirmak icin `Assets/Scripts/Debug/GeodesicTestHarness.cs` eklendi (tek cisim dairesel yörünge baslangici ve 50 cisim stres senaryosu kurulum yardimcisi).
+- `GravityWell` temas cozumune fallback eklendi (ComputePenetration basarisiz oldugunda radius/probe cozumune gecis).
+- `RelativisticBody` collider cache'i cocuk transformlardan da toplanacak sekilde genisletildi.
+- `GeodesicSystem` icinde self-well filtrelemesi eklendi (body'nin kendi well/collider'i ile temas cozumune girmesi engellendi).
+- `StructuralResponseBody` eklendi: temas + tidal gerilim birikimi, core pressure dengesi, fracture/nova olay tetikleri.
+- `MeshNodeDeformer` eklendi: node/vertex seviyesinde tidal eksende uzama ve radyal sikisma (spagettification) + recovery akisi.
+- `GeodesicSystem` yapisal tepki ve mesh deformasyon verisini fizik adiminda besleyecek sekilde guncellendi.
+- Procedural fizik baglayici eklendi: `ProceduralBodyPhysicsBinder` ile runtime body verisi `GravityWell`, `StructuralResponseBody` ve `MeshNodeDeformer` bileşenlerine uygulanir.
+- `CelestialBodyTemplate`, `RuntimeBodyData`, `CelestialBodyFactory` yapisal sim ve mesh deformasyon parametreleriyle genisletildi.
+- Dokuman guncellemesi: `BACKLOG.md` icine "Relativistik Yapisal Tepki + Mesh Node Deformasyon" ek yol haritasi eklendi ve `TEST-STR-*` etiketleriyle baglandi.
+- Dokuman guncellemesi: `Architecture.md` icine `StructuralResponseBody`, `MeshNodeDeformer` ve `ProceduralBodyPhysicsBinder` mimari bolumleri eklendi.
+- Yeni test plani dokumani olusturuldu: `RELATIVISTIC_STRUCTURAL_TEST_PLAN.md` (etiketli yapilacak test listesi).
 
 ## BIR SONRAKI ADIMLAR (FAZ 1)
 1. Unity Editor icinde Faz 1 P0 dogrulamalari: tek cisim eliptik yörünge, same-seed manuel kontrol, Inspector freeze/restore akis testi.
 2. `Assets/Scenes/Tests/GeodesicOrbitTest.unity` sahnesini kurup Faz 1 Gv 7 kabul kriterlerini tamamla (dusuk hiz Newton limiti, yuksek hiz presesyon, ProperTime freeze, NaN/Infinity kontrolu).
 3. Celestial body icin ornek `.asset` dosyalarini olusturup Inspector parametre setlerini doldur (`PlanetTemplate`, `BlackHoleTemplate` minimum set).
 4. Faz 1 kapisi icin profiler dogrulamasini yap (50 body hedefi, 60 FPS siniri).
+5. `RELATIVISTIC_STRUCTURAL_TEST_PLAN.md` icindeki TEST-STR-001..004 setini once calistir, sonuclari PASS/FAIL olarak raporla.
+6. Collision ve deformation icin ayri sahne dogrulamalariyla TEST-STR-010..013 setini tamamla.
 
 ## BLOKERLER
 - Teknik blokaj tanimli degil.

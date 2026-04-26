@@ -15,7 +15,7 @@ namespace Vortex.Physics
         [Header("Mass Settings")]
         [SerializeField, Min(0f)] private float mass = 88200f;
         [SerializeField, Min(0f)] private float physicalRadius = 200f;
-        [SerializeField] private bool enableSurfaceCollision = false;
+        [SerializeField] private bool enableSurfaceCollision = true;
         [SerializeField] private Collider surfaceCollider;
         [SerializeField] private bool autoAssignSurfaceCollider = true;
 
@@ -109,7 +109,13 @@ namespace Vortex.Physics
 
             if (surfaceCollider != null && bodyCollider != null)
             {
-                return TryResolveSurfaceContactWithCollider(bodyCollider, bodyRotation, bodyPosition, out resolvedPosition, out surfaceNormal);
+                if (TryResolveSurfaceContactWithCollider(bodyCollider, bodyRotation, bodyPosition, out resolvedPosition, out surfaceNormal))
+                {
+                    return true;
+                }
+
+                // Fallback path for unsupported collider pairs (for example non-convex mesh combinations).
+                return TryResolveSurfaceContact(bodyPosition, out resolvedPosition, out surfaceNormal);
             }
 
             return TryResolveSurfaceContact(bodyPosition, out resolvedPosition, out surfaceNormal);

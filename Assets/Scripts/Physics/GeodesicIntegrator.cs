@@ -265,7 +265,7 @@ namespace Vortex.Physics
             float omegaSq = tangentialSpeedSq / math.max(PhysicsConstants.IntegrationEpsilon, r * r);
 
             float correction = (-gammaRtt / c2) - (gammaRrr * radialSpeed * radialSpeed) - (gammaRphiphi * omegaSq / math.max(PhysicsConstants.IntegrationEpsilon, r));
-            return math.max(-Mathf.Abs(gammaRtt), correction);
+            return math.max(-math.abs(gammaRtt), correction);
         }
     }
 

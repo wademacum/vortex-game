@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 848b6b1e72eca6e479dd5b0641d19a9d, type: 3}
+  m_Name: SampleStarTemplate
+  m_EditorClassIdentifier: Assembly-CSharp::Vortex.Procedural.StarTemplate
+  bodyClass: 2
+  spawnWeight: 0.3
+  massRange: {x: 200000, y: 2000000}
+  radiusRange: {x: 300, y: 800}
+  densityRange: {x: 0.1, y: 1}
+  rotationRange: {x: 0.01, y: 0.5}
+  temperatureRange: {x: 3500, y: 30000}
+  albedoRange: {x: 0.9, y: 1}
+  generationMode: 4
+  noiseLayerConfig:
+    continent:
+      scale: 0
+      octaves: 0
+      amplitude: 0
+      persistence: 0
+      lacunarity: 0
+      offset: {x: 0, y: 0, z: 0}
+    mountain:
+      scale: 0
+      octaves: 0
+      amplitude: 0
+      persistence: 0
+      lacunarity: 0
+      offset: {x: 0, y: 0, z: 0}
+    detail:
+      scale: 0
+      octaves: 0
+      amplitude: 0
+      persistence: 0
+      lacunarity: 0
+      offset: {x: 0, y: 0, z: 0}
+  hasSurface: 0
+  hasAtmosphere: 0
+  hasEventHorizon: 0
+  supportsLanding: 0
+  radiationHazard: 1
+  anomalyChance: 0.05
+  biomeColorCurves: []
+  emissiveRange: {x: 0, y: 1}

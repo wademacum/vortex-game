@@ -1,6 +1,7 @@
 using System;
 using Unity.Mathematics;
 using UnityEngine;
+using Random = Unity.Mathematics.Random;
 
 namespace Vortex.Procedural
 {
@@ -87,6 +88,16 @@ namespace Vortex.Procedural
                 hasEventHorizon = template.hasEventHorizon,
                 supportsLanding = template.supportsLanding,
                 radiationHazard = template.radiationHazard,
+                corePressureSupport = Mathf.Max(0f, template.corePressureSupport),
+                fractureThreshold = Mathf.Max(0f, template.fractureThreshold),
+                collapseThreshold = Mathf.Max(0f, template.collapseThreshold),
+                novaThreshold = Mathf.Max(0f, template.novaThreshold),
+                structuralDamping = Mathf.Max(0f, template.structuralDamping),
+                enableMeshNodeDeformation = template.enableMeshNodeDeformation,
+                meshTidalStartThreshold = Mathf.Max(0f, template.meshTidalStartThreshold),
+                meshTidalMaxThreshold = Mathf.Max(0f, template.meshTidalMaxThreshold),
+                meshAxialStretchAtFull = Mathf.Max(0f, template.meshAxialStretchAtFull),
+                meshRadialSqueezeAtFull = Mathf.Max(0f, template.meshRadialSqueezeAtFull),
                 noiseLayerConfig = template.noiseLayerConfig,
                 biomeColorCurves = template.biomeColorCurves,
                 emissiveRange = template.emissiveRange

@@ -18,6 +18,7 @@ Her dinamik obje (gemiler, oyuncu, asteroitler) bu ana bileşene sahip olacaktı
 * **Veri Durumu:** `CoordinateTime` (t), `ProperTime` ($\tau$), `LocalDeltaTime`, `SphericalPosition` (r, $\theta$, $\phi$), `FourVelocity` ($dx^\mu/d\tau$).
 * **Sorumluluk:** Kendi "Proper Time" akisimi yonetmek. `PRD.md` 4.3'teki zaman dondurma mekanigi tetiklendiginde `ProperTime` akis carpani sifira esitlenir (Bkz: `GDD.md` 14.1).
 * **Zaman Kurali:** Hareket, animasyon ve cooldown hesaplari global `Time.timeScale` ile degil, obje bazli `LocalDeltaTime` ile yurur.
+* **Fizik Alt Bilesenleri:** `RelativisticBody`, opsiyonel `StructuralResponseBody` ve `MeshNodeDeformer` referanslarini cache'leyerek geodesic adiminda yapisal tepki ve vertex deformasyon akisina veri saglar.
 
 ### 2.2. `GeodesicIntegrator` (System Manager)
 Sahnedeki tekil fizik yöneticisidir (Singleton pattern kullanılmamalı, scene-context içinde tutulmalıdır).
@@ -29,6 +30,21 @@ Sahnedeki tekil fizik yöneticisidir (Singleton pattern kullanılmamalı, scene-
 ### 2.3. `GravityWell` (Kütle Merkezi Bileşeni)
 Gezegenlere ve yıldızlara eklenen, metriğin bükülme oranını ($r_s = 2GM/c^2$) belirleyen statik veya yarı-dinamik veri bileşeni. 
 * **Olay Ufku Koruması:** `PRD.md` 4.2 geregi, $r_s$ degeri gezegenin fiziksel mesh yaricapindan her zaman en az 10 birim daha kucuk olacak sekilde `OnValidate` veya `Awake` icinde sinirlandirilacak (clamp). Bu kural Faz 1 test kapisidir (Bkz: `BACKLOG.md` Faz 1).
+* **Temas Cozumu:** Yuzey temaslari `ComputePenetration` + fallback (radius/probe) ile cozulur; self-well temaslar geodesic sistemde filtrelenir.
+
+### 2.5. `StructuralResponseBody` (Yapisal Gerilim ve Cokme)
+Katı yuzeyli cisimlerin temas ve tidal alan altinda yapisal tepkisini modelleyen runtime bilesen.
+* **Gerilim Kanallari:** `compressionStress`, `tensionStress`.
+* **Denge Mekanigi:** `corePressureSupport` ile gerilim/cokme dengesi; `collapseProgress` ile birikimli cokme.
+* **Olaylar:** `FractureTriggered` ve `NovaTriggered` event cikislari.
+* **Hedef:** Procedural kirilma ve yildiz nova gecislerini fizik cekirdeginden tetikleyebilmek.
+
+### 2.6. `MeshNodeDeformer` (Vertex/Node Seviyesi Deformasyon)
+Procedural veya runtime mesh uzerindeki dugum noktalarini tidal alanla deforme eden bilesen.
+* **Aksiyon:** En guclu tidal eksende uzama (axial stretch) + dik duzlemde sikisma (radial squeeze).
+* **Geri Donus:** Alan azaldiginda kontrollu recovery hiziyla rest shape'e donus.
+* **Uygulama:** `MeshFilter.sharedMesh` runtime instance'a cevrilerek source mesh'in bozulmasi engellenir.
+* **Hedef:** Kara delige yaklasimda spagettification etkisini node seviyesinde uretebilmek.
 
 ### 2.4. Hiz Siniri ve Time Dilation Birlesimi
 * **Işık Hızı Politikası:** Oyun içi ışık hızı $c$ sert üst sınırdır; `RelativisticBody` hızları hard clamp ile $0.95c$ altında tutulur.
@@ -53,7 +69,15 @@ Her tip icin parametre araliklari tutan veri kalibidir. Kaliplar runtime'da rand
 * Agirlikli template secimi (oyun bolgesi, fraksiyon etkisi, hikaye fazi).
 * Secilen template uzerinden parametre ornekleme ve dogrulama (min-max clamp).
 * Cisim tipine gore uygun olusturma hattina yonlendirme.
+* Runtime fizik alanlari: yapisal esikler (`corePressureSupport`, `fractureThreshold`, `collapseThreshold`, `novaThreshold`) ve mesh deformasyon parametreleri de runtime veriyle birlikte tasinir.
 * **Referans Notu:** Deterministik akis kurallari icin Bkz: `PRD.md` 3.5; uygulama sirasi icin Bkz: `BACKLOG.md` Faz 1.
+
+### 3.0.2. `ProceduralBodyPhysicsBinder` (Uretim Sonrasi Fizik Baglayici)
+Procedural spawn sonrasi `RuntimeBodyData`'yi sahnedeki bilesenlere uygular.
+* `GravityWell.ApplyProceduralBody(mass, radius)` ile kutle-yaricap senkronu.
+* `StructuralResponseBody` auto-add + runtime esik konfig.
+* `MeshNodeDeformer` auto-add + tidal deformasyon parametre konfig.
+* Hedef: Procedural uretimden gelen cisimlerin fizik/yapisal davranisinin tek adimda aktif edilmesi.
 
 ### 3.1. `VoxelDataGenerator` (Compute Shader)
 * `CelestialBodyFactory` tarafindan `SolidSdf` modunda secilen cisimlerde kullanilir (gezegen, uydu, bazi asteroid varyantlari).

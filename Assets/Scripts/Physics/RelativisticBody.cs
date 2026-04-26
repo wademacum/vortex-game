@@ -28,6 +28,8 @@ namespace Vortex.Physics
 
         private float cachedProperTime = 1f;
         private Collider cachedCollider;
+        private StructuralResponseBody cachedStructuralResponse;
+        private MeshNodeDeformer cachedMeshDeformer;
         private Vector3 previousPhysicsPosition;
         private Vector3 currentPhysicsPosition;
         private Quaternion previousPhysicsRotation;
@@ -51,6 +53,8 @@ namespace Vortex.Physics
 
         public bool IsTimeFrozen => properTime <= 0f;
         public Collider BodyCollider => cachedCollider;
+        public StructuralResponseBody StructuralResponse => cachedStructuralResponse;
+        public MeshNodeDeformer MeshDeformer => cachedMeshDeformer;
         public float CollisionSpinScale => collisionSpinScale;
         public float CollisionSpinImpulseScale => collisionSpinImpulseScale;
         public float AngularDampingPerFixedStep => angularDampingPerFixedStep;
@@ -69,6 +73,8 @@ namespace Vortex.Physics
         {
             EnsureNoRigidbody();
             CacheCollider();
+            CacheStructuralResponse();
+            CacheMeshDeformer();
             properTime = Mathf.Clamp01(properTime);
             cachedProperTime = properTime > 0f ? properTime : 1f;
             InitializePhysicsStateFromTransform();
@@ -83,6 +89,8 @@ namespace Vortex.Physics
             collisionSpinImpulseScale = Mathf.Max(0f, collisionSpinImpulseScale);
             angularDampingPerFixedStep = Mathf.Clamp01(angularDampingPerFixedStep);
             CacheCollider();
+            CacheStructuralResponse();
+            CacheMeshDeformer();
             InitializePhysicsStateFromTransform();
             if (properTime > 0f)
             {
@@ -201,6 +209,27 @@ namespace Vortex.Physics
             if (cachedCollider == null)
             {
                 cachedCollider = GetComponent<Collider>();
+            }
+
+            if (cachedCollider == null)
+            {
+                cachedCollider = GetComponentInChildren<Collider>(true);
+            }
+        }
+
+        private void CacheStructuralResponse()
+        {
+            if (cachedStructuralResponse == null)
+            {
+                cachedStructuralResponse = GetComponent<StructuralResponseBody>();
+            }
+        }
+
+        private void CacheMeshDeformer()
+        {
+            if (cachedMeshDeformer == null)
+            {
+                cachedMeshDeformer = GetComponent<MeshNodeDeformer>();
             }
         }
 

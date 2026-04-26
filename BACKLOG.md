@@ -54,8 +54,8 @@
     - [x] Tüm alt tip sınıflarını yaz (6 adet)
     - [x] `NoiseLayerConfig` struct'ını tanımla
     - [x] `[CreateAssetMenu]` attribute'larını ekle
-    - [ ] Örnek `.asset` dosyalarını oluştur ve Inspector'dan doldur
-    - [ ] Derleme hatası yokluğunu doğrula
+    - [x] Örnek `.asset` dosyalarını oluştur ve Inspector'dan doldur (`SamplePlanetTemplate.asset`, `SampleBlackHoleTemplate.asset`, `SampleStarTemplate.asset`)
+    - [x] Derleme hatası yokluğunu doğrula (21 EditMode testi geçiyor)
 
 ---
 
@@ -79,7 +79,7 @@
     - [x] `CelestialBodyFactory.Generate()` metodunu yaz
     - [x] `Unity.Mathematics.Random` ile ağırlıklı seçimi implemente et
     - [x] Deterministik parametere örneklemeyi implemente et
-    - [ ] Manuel Editor testi ile aynı seed → aynı çıktı doğrula
+    - [x] Manuel Editor testi ile aynı seed → aynı çıktı doğrula
 
 ---
 
@@ -104,7 +104,7 @@
     - [x] `GravityWellRegistry` statik listesini yaz
     - [x] OnEnable/OnDisable ile kayıt/çıkış mantığını ekle
     - [x] `OnDrawGizmos` ile wireframe küre ekle
-    - [ ] Inspector testi yap
+    - [x] Inspector testi yap
 
 ---
 
@@ -127,7 +127,7 @@
     - [x] `IsTimeFrozen` property ekle
     - [x] `localDeltaTime` alanını ekle ve obje-bazli zaman akisini bununla surdur
     - [x] Rigidbody devre dışı bırakma mantığını ekle
-    - [ ] Basit Inspector testi: dondur → `properTime == 0` doğrula
+    - [x] Basit Inspector testi: dondur → `properTime == 0` doğrula
 
 ---
 
@@ -178,12 +178,12 @@
   **İlerleme:**
   - Yapıldı: —
   - Yapılacak:
-    - [ ] Test sahnesini kur
+    - [x] Test sahnesini kur (`Assets/Scenes/Tests/GeodesicOrbitTest.unity`)
     - [x] `OrbitVisualizer` yaz
-    - [ ] Düşük hız limiti testi → Newton uyumu gözlemle
-    - [ ] Yüksek hız testi → Schwarzschild öncesyonu gözlemle
-    - [ ] `ProperTime = 0` freeze testi
-    - [ ] NaN/Infinity konsol kontrolü
+    - [ ] Düşük hız limiti testi → Newton uyumu gözlemle (Play mod'da görsel doğrulanacak)
+    - [ ] Yüksek hız testi → Schwarzschild öncesyönu gözlemle (Play mod'da görsel doğrulanacak)
+    - [ ] `ProperTime = 0` freeze testi (Play mod'da görsel doğrulanacak)
+    - [ ] NaN/Infinity konsol kontrolü (GeodesicOrbitTestRunner otomatik izliyor)
     - [ ] FAZ kapısı onayı: geçtiyse FAZ 2'ye geç
 
 ---
@@ -210,7 +210,7 @@
     - [x] `fourVelocity`'e itki ekleme mantığını entegre et
     - [x] `properTime == 0` iken itki kilidi ekle
     - [x] `CameraFollow.cs` yaz
-    - [ ] Sahne testi: geodezikten çık/geri dön
+    - [ ] Sahne testi: geodezikten çık/geri dön (Görev 7 sahnesinde doğrulanacak)
 
 ---
 
@@ -398,6 +398,70 @@
     - [ ] `CollisionDamageController` eşik tetiklemesini yaz
     - [ ] Test: tek krater oluşumu
     - [ ] Test: çoklu birikmeli krater
+
+---
+
+## EK YOL HARITASI: RELATIVISTIK YAPISAL TEPKI + MESH NODE DEFORMASYON
+*Bu bolum, procedural mesh uretimi sonrasi gerekli olacak node-bazli bukulme, spagettification, yapisal cokme ve nova tetiklerini backlog'a tasir. Test etiketleri: `TEST-STR-*` (Bkz: `RELATIVISTIC_STRUCTURAL_TEST_PLAN.md`).*
+
+- [ ] **[P0] RS-1: Node-Bazli Tidal Deformasyon Pipeline Stabilizasyonu**
+
+  **Amac:** `MeshNodeDeformer` ile runtime mesh instance deformasyonunun sahnede deterministik ve geri donuslu calismasini garanti etmek.
+
+  **Yapilacak:**
+    - [ ] `MeshNodeDeformer` icin coklu `MeshFilter` hiyerarsilerinde cache/perf profillemesi
+    - [ ] Tidal eksen seciminde en guclu well + ikincil well blend stratejisi
+    - [ ] Normal/tangent yeniden hesaplama politikasini LOD seviyesine gore ayirma
+    - [ ] Deformasyon geri donus hizinin gameplay fazlarina gore parametrize edilmesi
+
+  **Test Etiketleri:** `TEST-STR-001`, `TEST-STR-002`, `TEST-STR-003`, `TEST-STR-004`
+
+- [ ] **[P0] RS-2: Yapisal Gerilim -> Kirilma Kumesi (Fracture Feed) Entegrasyonu**
+
+  **Amac:** `StructuralResponseBody` tarafinda biriken temas + tidal gerilimi, procedural fracture sistemine dogrudan veri olarak aktarmak.
+
+  **Yapilacak:**
+    - [ ] Vertex/triangle bazli yerel gerilim haritasi uretimi
+    - [ ] Kirilma merkez noktasi ve etki yaricapi hesaplayici katmani
+    - [ ] `FractureTriggered` olayindan procedural parcalama pipeline'ina baglanti
+    - [ ] Coklu darbelerde birikimli hasar modeli
+
+  **Test Etiketleri:** `TEST-STR-010`, `TEST-STR-011`, `TEST-STR-012`, `TEST-STR-013`
+
+- [ ] **[P1] RS-3: Cokme Basinci ve Nova Tetik Akisi**
+
+  **Amac:** Yildiz/superdev cisimlerde cekirdek basinci ile cokme dengesini simule edip esik asiminda nova olayini tetiklemek.
+
+  **Yapilacak:**
+    - [ ] `collapseProgress` -> olay/state makinesi (Stable, Critical, Collapsing, Nova)
+    - [ ] Nova tetiginde kutle/radius/sicaklik yeniden dagitim kurali
+    - [ ] Nova oncesi ve sonrasi cekim alani degisimlerinin geodesic sisteme yansitilmasi
+    - [ ] Oyuncu ve yakin cisimler icin hasar/radyasyon etkisi
+
+  **Test Etiketleri:** `TEST-STR-020`, `TEST-STR-021`, `TEST-STR-022`, `TEST-STR-023`
+
+- [ ] **[P1] RS-4: Uzak Mesafe LOD Deformasyon Stratejisi**
+
+  **Amac:** Spagettification ve node-deform maliyetini uzak cisimlerde dusurmek; yakin cisimlerde tam kaliteyi korumak.
+
+  **Yapilacak:**
+    - [ ] LOD0: tam vertex deformasyon, LOD1: seyrek vertex ornekleme, LOD2: shader tabanli approx
+    - [ ] Kamera mesafesi + ekrandaki acisal cap bazli LOD secim heuristigi
+    - [ ] LOD gecislerinde pop/titreşim engeli icin histerezis
+    - [ ] Profil hedefi: 50 aktif cisimde 60 FPS alti dusmeme
+
+  **Test Etiketleri:** `TEST-STR-030`, `TEST-STR-031`, `TEST-STR-032`
+
+- [ ] **[P0] RS-TEST-DOC: Relativistik Yapisal Test Planini yasat**
+
+  **Amac:** Planlanan testlerin tek kaynaktan takip edilmesi ve backlog-gorev-test eslesmesinin korunmasi.
+
+  **Yapilacak:**
+    - [ ] `RELATIVISTIC_STRUCTURAL_TEST_PLAN.md` dosyasini her buyuk fizik degisikliginde guncelle
+    - [ ] Her backlog maddesi icin en az bir `TEST-STR-*` etiketi tut
+    - [ ] Test sonuc raporlarini bu etiketlerle PROGRESS raporuna ozetle
+
+  **Test Etiketleri:** `TEST-STR-900`
     - [ ] Kenar yumuşatma (isteğe bağlı Smin ile)
 
 ---

@@ -21,6 +21,18 @@ namespace Vortex.Procedural
         public bool supportsLanding;
         public bool radiationHazard;
 
+        public float corePressureSupport;
+        public float fractureThreshold;
+        public float collapseThreshold;
+        public float novaThreshold;
+        public float structuralDamping;
+
+        public bool enableMeshNodeDeformation;
+        public float meshTidalStartThreshold;
+        public float meshTidalMaxThreshold;
+        public float meshAxialStretchAtFull;
+        public float meshRadialSqueezeAtFull;
+
         public NoiseLayerConfig noiseLayerConfig;
         public Gradient[] biomeColorCurves;
         public Vector2 emissiveRange;

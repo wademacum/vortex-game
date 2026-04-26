@@ -32,6 +32,20 @@ namespace Vortex.Procedural
         [Range(0f, 1f)]
         public float anomalyChance = 0.05f;
 
+        [Header("Structural Simulation")]
+        [Min(0f)] public float corePressureSupport = 10f;
+        [Min(0f)] public float fractureThreshold = 18f;
+        [Min(0f)] public float collapseThreshold = 24f;
+        [Min(0f)] public float novaThreshold = 1f;
+        [Min(0f)] public float structuralDamping = 4f;
+
+        [Header("Mesh Deformation")]
+        public bool enableMeshNodeDeformation = true;
+        [Min(0f)] public float meshTidalStartThreshold = 0.02f;
+        [Min(0f)] public float meshTidalMaxThreshold = 2.0f;
+        [Min(0f)] public float meshAxialStretchAtFull = 1.6f;
+        [Min(0f)] public float meshRadialSqueezeAtFull = 0.55f;
+
         [Header("Rendering")]
         public Gradient[] biomeColorCurves;
         public Vector2 emissiveRange = new Vector2(0f, 1f);
