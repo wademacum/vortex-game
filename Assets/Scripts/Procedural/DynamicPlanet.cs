@@ -1,6 +1,7 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using Vortex.Physics;
-using System;
 
 namespace Vortex.Procedural
 {
@@ -32,7 +33,7 @@ namespace Vortex.Procedural
         [SerializeField, Min(8)] private int farResolution = 16;
         [SerializeField, Min(1f)] private float nearDistance = 450f;
         [SerializeField, Min(1f)] private float farDistance = 1100f;
-        [SerializeField, Min(1f)] private float radiusPaddingMultiplier = 1.2f;
+        [SerializeField, Min(1f)] private float radiusPaddingMultiplier = 1.35f;
 
         [Header("Meshing")]
         [SerializeField] private float isoLevel = 0f;
@@ -40,9 +41,12 @@ namespace Vortex.Procedural
         [SerializeField] private bool runtimeLodUpdates = true;
         [SerializeField] private bool generateInEditMode = true;
         [SerializeField, Min(0.1f)] private float retryIntervalSeconds = 0.75f;
+        [SerializeField, Min(0.01f)] private float defaultBlendStrength = 6f;
 
         [Header("Rendering")]
         [SerializeField] private bool forceHdrpLitMaterial = true;
+
+        [SerializeField, HideInInspector] private List<DamageStamp> persistentDamageStamps = new List<DamageStamp>();
 
         private RuntimeBodyData runtimeData;
         private bool runtimeDataReady;
@@ -55,6 +59,10 @@ namespace Vortex.Procedural
         private bool hasLoggedPipelineWarning;
         private bool hasLoggedMissingRenderShader;
         private Material autoMaterial;
+        private bool shapeDirty = true;
+        private bool shadingDirty = true;
+        private bool composeDirty = true;
+        private readonly List<SdfComposeCommand> composeCommandCache = new List<SdfComposeCommand>();
 
         private MeshFilter meshFilter;
         private MeshRenderer meshRenderer;
@@ -88,7 +96,7 @@ namespace Vortex.Procedural
         {
             if (HasTemplateSourceChanged())
             {
-                MarkRuntimeDataDirty();
+                MarkRuntimeDataDirty(markShape: true, markShading: true, markCompose: true);
                 RegenerateMesh();
                 return;
             }
@@ -108,12 +116,7 @@ namespace Vortex.Procedural
                 ResolveRuntimeData();
             }
 
-            if (!runtimeDataReady)
-            {
-                return;
-            }
-
-            if (Time.realtimeSinceStartup < nextRetryTime)
+            if (!runtimeDataReady || Time.realtimeSinceStartup < nextRetryTime)
             {
                 return;
             }
@@ -121,19 +124,70 @@ namespace Vortex.Procedural
             int desired = ResolveLodResolution();
             if (desired != activeResolution)
             {
+                shapeDirty = true;
+                shadingDirty = true;
                 RegenerateMesh();
+            }
+            else if (shadingDirty && generatedMesh != null)
+            {
+                RebuildShadingOnly();
             }
         }
 
         [ContextMenu("Refresh Runtime Data")]
         public void RefreshRuntimeData()
         {
-            MarkRuntimeDataDirty();
+            MarkRuntimeDataDirty(markShape: true, markShading: true, markCompose: true);
             RegenerateMesh();
+        }
+
+        public bool RandomizeSelectedTemplateShape()
+        {
+            if (selectedTemplate == null)
+            {
+                Debug.LogWarning("[DynamicPlanet] Random shape requested, but no selected template is assigned.", this);
+                return false;
+            }
+
+            int randomSeed = unchecked(seed * 486187739 + Environment.TickCount);
+            bool changed = CelestialBodyTemplate.Randomize(selectedTemplate, randomSeed);
+            if (!changed)
+            {
+                Debug.LogWarning("[DynamicPlanet] Selected template does not support body-specific randomization.", this);
+                return false;
+            }
+
+            if (selectedTemplate is PlanetTemplate planetTemplate)
+            {
+                planetTemplate.ApplyAuthoringDefaults();
+            }
+            else if (selectedTemplate is MoonTemplate moonTemplate)
+            {
+                moonTemplate.ApplyAuthoringDefaults();
+            }
+            /*
+            else if (selectedTemplate is AsteroidClusterTemplate asteroidTemplate)
+            {
+                asteroidTemplate.ApplyAuthoringDefaults();
+            }
+            */
+
+            #if UNITY_EDITOR
+            UnityEditor.EditorUtility.SetDirty(selectedTemplate);
+            #endif
+
+            MarkRuntimeDataDirty(markShape: true, markShading: true, markCompose: true);
+            RegenerateMesh();
+            return true;
         }
 
         [ContextMenu("Regenerate Mesh")]
         public void RegenerateMesh()
+        {
+            RegenerateMesh(null, 0f);
+        }
+
+        public void RegenerateMesh(DynamicPlanet other, float blendFactor = 0f)
         {
             ResolveRuntimeData();
             if (!runtimeDataReady)
@@ -144,43 +198,133 @@ namespace Vortex.Procedural
 
             int resolution = ResolveLodResolution();
             float diameter = Mathf.Max(1f, runtimeData.radius * 2f * radiusPaddingMultiplier);
+            diameter = Mathf.Max(diameter, runtimeData.radius * 2f * EstimateRequiredPaddingMultiplier(runtimeData));
             float voxelSize = diameter / Mathf.Max(1, resolution - 1);
             Vector3 gridOrigin = new Vector3(-diameter * 0.5f, -diameter * 0.5f, -diameter * 0.5f);
 
-            voxelDataManager.ConfigureGrid(resolution, voxelSize);
-            if (!voxelDataManager.Generate(runtimeData, gridOrigin))
+            RebuildComposeCache(other, blendFactor);
+
+            if (shapeDirty || composeDirty || generatedMesh == null || resolution != activeResolution)
             {
-                ScheduleRetry("VoxelDataGenerator missing or not initialized.");
+                voxelDataManager.ConfigureGrid(resolution, voxelSize);
+                if (!voxelDataManager.Generate(runtimeData, gridOrigin, composeCommandCache.Count > 0 ? composeCommandCache.ToArray() : null))
+                {
+                    ScheduleRetry("VoxelDataGenerator missing or not initialized.");
+                    return;
+                }
+
+                Mesh mesh = marchingCubesMesher.GenerateMesh(
+                    voxelDataManager.SdfBuffer,
+                    resolution,
+                    voxelSize,
+                    gridOrigin,
+                    isoLevel,
+                    runtimeData);
+
+                if (mesh == null)
+                {
+                    ScheduleRetry("MarchingCubesMesher missing or not initialized.");
+                    return;
+                }
+
+                if (generatedMesh != null)
+                {
+                    DestroyImmediate(generatedMesh);
+                }
+
+                generatedMesh = mesh;
+                meshFilter.sharedMesh = generatedMesh;
+                meshCollider.sharedMesh = generatedMesh;
+                activeResolution = resolution;
+                hasLoggedPipelineWarning = false;
+                shapeDirty = false;
+                shadingDirty = false;
+                composeDirty = false;
+                EnsureVisibleMaterial();
+                ApplyRuntimeMaterialProperties();
+                ApplyRuntimePhysicsBinding();
+                return;
+            }
+
+            if (shadingDirty)
+            {
+                RebuildShadingOnly();
+            }
+        }
+
+        public void ApplyDamage(Vector3 worldPos, float radius, float depth)
+        {
+            Vector3 local = transform.InverseTransformPoint(worldPos);
+            DamageStamp stamp = new DamageStamp
+            {
+                shape = SdfComposeShape.Sphere,
+                localPointA = local,
+                localPointB = local,
+                radius = Mathf.Max(0.01f, radius),
+                depth = Mathf.Max(0.001f, depth)
+            };
+
+            persistentDamageStamps.Add(stamp);
+            composeDirty = true;
+            RegenerateMesh();
+        }
+
+        private void RebuildShadingOnly()
+        {
+            if (generatedMesh == null)
+            {
                 return;
             }
 
             Mesh mesh = marchingCubesMesher.GenerateMesh(
                 voxelDataManager.SdfBuffer,
-                resolution,
-                voxelSize,
-                gridOrigin,
-                isoLevel);
+                voxelDataManager.GridResolution,
+                voxelDataManager.VoxelSize,
+                new Vector3(-(voxelDataManager.GridResolution - 1) * voxelDataManager.VoxelSize * 0.5f,
+                            -(voxelDataManager.GridResolution - 1) * voxelDataManager.VoxelSize * 0.5f,
+                            -(voxelDataManager.GridResolution - 1) * voxelDataManager.VoxelSize * 0.5f),
+                isoLevel,
+                runtimeData);
 
             if (mesh == null)
             {
-                ScheduleRetry("MarchingCubesMesher missing or not initialized.");
                 return;
             }
 
-            if (generatedMesh != null)
-            {
-                DestroyImmediate(generatedMesh);
-            }
-
+            DestroyImmediate(generatedMesh);
             generatedMesh = mesh;
             meshFilter.sharedMesh = generatedMesh;
             meshCollider.sharedMesh = generatedMesh;
-            activeResolution = resolution;
-            hasLoggedPipelineWarning = false;
+            shadingDirty = false;
+        }
 
-            EnsureVisibleMaterial();
+        private void RebuildComposeCache(DynamicPlanet other, float blendFactor)
+        {
+            composeCommandCache.Clear();
 
-            ApplyRuntimePhysicsBinding();
+            for (int i = 0; i < persistentDamageStamps.Count; i++)
+            {
+                composeCommandCache.Add(persistentDamageStamps[i].ToComposeCommand());
+            }
+
+            if (other != null && blendFactor > 0f)
+            {
+                Vector3 otherLocalCenter = transform.InverseTransformPoint(other.transform.position);
+                float otherRadius = other.runtimeDataReady ? other.runtimeData.radius : other.fallbackRadius;
+                composeCommandCache.Add(SdfComposeCommand.CreateBlendSphere(
+                    otherLocalCenter,
+                    Mathf.Max(1f, otherRadius),
+                    Mathf.Max(0.001f, blendFactor)));
+            }
+            else if (other != null)
+            {
+                Vector3 otherLocalCenter = transform.InverseTransformPoint(other.transform.position);
+                float otherRadius = other.runtimeDataReady ? other.runtimeData.radius : other.fallbackRadius;
+                composeCommandCache.Add(SdfComposeCommand.CreateBlendSphere(
+                    otherLocalCenter,
+                    Mathf.Max(1f, otherRadius),
+                    defaultBlendStrength));
+            }
         }
 
         private int ResolveLodResolution()
@@ -244,8 +388,7 @@ namespace Vortex.Procedural
                 }
             }
 
-            runtimeData = CreateFallbackRuntimeData();
-            runtimeData = NormalizeForDynamicPlanet(runtimeData);
+            runtimeData = NormalizeForDynamicPlanet(CreateFallbackRuntimeData());
             runtimeDataReady = true;
         }
 
@@ -270,12 +413,46 @@ namespace Vortex.Procedural
             {
                 RuntimeBodyData fallback = CreateFallbackRuntimeData();
                 data.noiseLayerConfig = fallback.noiseLayerConfig;
+                data.planetShapeConfig = fallback.planetShapeConfig;
+                data.moonShapeConfig = fallback.moonShapeConfig;
+            }
+
+            if (data.baseShapeConfig.verticalSquash <= 0f)
+            {
+                data.baseShapeConfig.verticalSquash = 1f;
+            }
+
+            float maxOffset = Mathf.Max(2f, data.radius * 0.08f);
+            data.baseShapeConfig.commonOffset = Vector3.ClampMagnitude(data.baseShapeConfig.commonOffset, maxOffset);
+
+            if (data.shapeModel == ShapeModel.Moon)
+            {
+                if (data.moonShapeConfig.craterRadiusRange.x <= 0f)
+                {
+                    data.moonShapeConfig.craterRadiusRange.x = 0.005f;
+                }
+                if (data.moonShapeConfig.craterRadiusRange.y <= data.moonShapeConfig.craterRadiusRange.x)
+                {
+                    data.moonShapeConfig.craterRadiusRange.y = data.moonShapeConfig.craterRadiusRange.x + 0.005f;
+                }
+                if (data.moonShapeConfig.craterDepth <= 0f)
+                {
+                    data.moonShapeConfig.craterDepth = 0.001f;
+                }
+                if (data.moonShapeConfig.craterRimSharpness <= 0f)
+                {
+                    data.moonShapeConfig.craterRimSharpness = 0.01f;
+                }
+                if (data.moonShapeConfig.craterNoiseScale <= 0f)
+                {
+                    data.moonShapeConfig.craterNoiseScale = 0.001f;
+                }
             }
 
             return data;
         }
 
-        private void MarkRuntimeDataDirty()
+        private void MarkRuntimeDataDirty(bool markShape, bool markShading, bool markCompose)
         {
             runtimeDataReady = false;
             activeResolution = -1;
@@ -283,6 +460,9 @@ namespace Vortex.Procedural
             hasLoggedPipelineWarning = false;
             hasLoggedModeOverride = false;
             lastTemplateSourceHash = ComputeTemplateSourceHash();
+            shapeDirty |= markShape;
+            shadingDirty |= markShading;
+            composeDirty |= markCompose;
         }
 
         private bool HasTemplateSourceChanged()
@@ -356,6 +536,8 @@ namespace Vortex.Procedural
             {
                 bodyClass = bodyClass,
                 generationMode = GenerationMode.SolidSdf,
+                shapeModel = bodyClass == BodyClass.Moon ? ShapeModel.Moon : ShapeModel.Planet,
+                shadingModel = bodyClass == BodyClass.Moon || bodyClass == BodyClass.AsteroidCluster ? ShadingModel.MoonBiomes : ShadingModel.PlanetBands,
                 mass = fallbackMass,
                 radius = fallbackRadius,
                 density = 1f,
@@ -380,48 +562,85 @@ namespace Vortex.Procedural
                 meshRadialSqueezeAtFull = 0.55f,
                 noiseLayerConfig = new NoiseLayerConfig
                 {
-                    continent = new NoiseLayer
-                    {
-                        scale = 0.01f,
-                        octaves = 4,
-                        amplitude = 20f,
-                        persistence = 0.5f,
-                        lacunarity = 2f,
-                        offset = new Vector3(17f, 31f, 53f)
-                    },
-                    mountain = new NoiseLayer
-                    {
-                        scale = 0.03f,
-                        octaves = 4,
-                        amplitude = 9f,
-                        persistence = 0.55f,
-                        lacunarity = 2f,
-                        offset = new Vector3(113f, 79f, 41f)
-                    },
-                    detail = new NoiseLayer
-                    {
-                        scale = 0.08f,
-                        octaves = 3,
-                        amplitude = 2f,
-                        persistence = 0.5f,
-                        lacunarity = 2f,
-                        offset = new Vector3(199f, 157f, 89f)
-                    }
+                    continent = CreateNoiseLayer(0.01f, 4, 20f, 0.5f, 2f, new Vector3(17f, 31f, 53f)),
+                    mountain = CreateNoiseLayer(0.03f, 4, 9f, 0.55f, 2f, new Vector3(113f, 79f, 41f)),
+                    detail = CreateNoiseLayer(0.08f, 3, 2f, 0.5f, 2f, new Vector3(199f, 157f, 89f))
+                },
+                baseShapeConfig = new BaseShapeConfig
+                {
+                    commonOffset = Vector3.zero,
+                    radiusBias = 0f,
+                    verticalSquash = 1f
+                },
+                planetShapeConfig = new PlanetShapeConfig
+                {
+                    continent = CreateNoiseLayer(0.01f, 4, 20f, 0.5f, 2f, new Vector3(17f, 31f, 53f)),
+                    mountain = CreateNoiseLayer(0.03f, 4, 9f, 0.55f, 2f, new Vector3(113f, 79f, 41f)),
+                    detail = CreateNoiseLayer(0.08f, 3, 2f, 0.5f, 2f, new Vector3(199f, 157f, 89f)),
+                    mask = CreateNoiseLayer(0.015f, 3, 1f, 0.5f, 2f, new Vector3(67f, 23f, 149f)),
+                    oceanDepthMultiplier = 2f,
+                    oceanFloorDepth = 1f,
+                    oceanFloorSmoothing = 0.5f,
+                    mountainBlend = 1f
+                },
+                moonShapeConfig = new MoonShapeConfig
+                {
+                    shape = CreateNoiseLayer(0.02f, 4, 6f, 0.5f, 2f, new Vector3(13f, 31f, 59f)),
+                    ridgeA = CreateNoiseLayer(0.035f, 4, 4f, 0.45f, 2.1f, new Vector3(71f, 97f, 127f)),
+                    ridgeB = CreateNoiseLayer(0.07f, 3, 2.5f, 0.5f, 2.2f, new Vector3(149f, 181f, 211f)),
+                    craterCount = 24,
+                    craterRadiusRange = new Vector2(4f, 18f),
+                    craterDepth = 2f,
+                    craterRimSharpness = 2f,
+                    craterNoiseScale = 0.03f
+                },
+                planetShadingConfig = new PlanetShadingConfig
+                {
+                    largeNoise = CreateNoiseLayer(0.008f, 3, 1f, 0.5f, 2f, new Vector3(11f, 29f, 47f)),
+                    smallNoise = CreateNoiseLayer(0.03f, 3, 1f, 0.5f, 2f, new Vector3(89f, 107f, 131f)),
+                    detailNoise = CreateNoiseLayer(0.07f, 2, 1f, 0.5f, 2f, new Vector3(151f, 173f, 197f)),
+                    detailWarpNoise = CreateNoiseLayer(0.02f, 2, 1f, 0.5f, 2f, new Vector3(211f, 223f, 239f))
+                },
+                moonShadingConfig = new MoonShadingConfig
+                {
+                    biomePointCount = 18,
+                    biomeRadiusRange = new Vector2(0.08f, 0.22f),
+                    biomeWarpNoise = CreateNoiseLayer(0.015f, 2, 1f, 0.5f, 2f, new Vector3(17f, 37f, 73f)),
+                    detailNoise = CreateNoiseLayer(0.08f, 2, 1f, 0.5f, 2f, new Vector3(101f, 139f, 167f)),
+                    detailWarpNoise = CreateNoiseLayer(0.03f, 2, 1f, 0.5f, 2f, new Vector3(191f, 223f, 251f)),
+                    candidatePoolSize = 0.25f,
+                    desiredEjectaRays = 2,
+                    ejectaRaysScale = 10f
+                },
+                moonSurfaceConfig = new MoonSurfaceConfig
+                {
+                    mainTextureScale = 0.012f,
+                    flatSurfaceScale = 0.03f,
+                    steepSurfaceScale = 0.045f,
+                    textureBlendStrength = 0.28f,
+                    ejectaBrightness = 0.14f,
+                    steepDarkening = 0.16f
                 }
+            };
+        }
+
+        private static NoiseLayer CreateNoiseLayer(float scale, int octaves, float amplitude, float persistence, float lacunarity, Vector3 offset)
+        {
+            return new NoiseLayer
+            {
+                scale = scale,
+                octaves = octaves,
+                amplitude = amplitude,
+                persistence = persistence,
+                lacunarity = lacunarity,
+                offset = offset
             };
         }
 
         private void OnDestroy()
         {
-            if (voxelDataManager != null)
-            {
-                voxelDataManager.ReleaseResources();
-            }
-
-            if (marchingCubesMesher != null)
-            {
-                marchingCubesMesher.ReleaseResources();
-            }
+            voxelDataManager?.ReleaseResources();
+            marchingCubesMesher?.ReleaseResources();
 
             if (generatedMesh != null)
             {
@@ -438,46 +657,19 @@ namespace Vortex.Procedural
 
         private void OnDisable()
         {
-            if (voxelDataManager != null)
-            {
-                voxelDataManager.ReleaseResources();
-            }
-
-            if (marchingCubesMesher != null)
-            {
-                marchingCubesMesher.ReleaseResources();
-            }
+            voxelDataManager?.ReleaseResources();
+            marchingCubesMesher?.ReleaseResources();
         }
 
         private void OnValidate()
         {
-            if (meshRenderer == null)
-            {
-                meshRenderer = GetComponent<MeshRenderer>();
-            }
+            if (meshRenderer == null) meshRenderer = GetComponent<MeshRenderer>();
+            if (meshFilter == null) meshFilter = GetComponent<MeshFilter>();
+            if (meshCollider == null) meshCollider = GetComponent<MeshCollider>();
+            if (voxelDataManager == null) voxelDataManager = GetComponent<VoxelDataManager>();
+            if (marchingCubesMesher == null) marchingCubesMesher = GetComponent<MarchingCubesMesher>();
 
-            if (meshFilter == null)
-            {
-                meshFilter = GetComponent<MeshFilter>();
-            }
-
-            if (meshCollider == null)
-            {
-                meshCollider = GetComponent<MeshCollider>();
-            }
-
-            if (voxelDataManager == null)
-            {
-                voxelDataManager = GetComponent<VoxelDataManager>();
-            }
-
-            if (marchingCubesMesher == null)
-            {
-                marchingCubesMesher = GetComponent<MarchingCubesMesher>();
-            }
-
-            MarkRuntimeDataDirty();
-
+            MarkRuntimeDataDirty(markShape: true, markShading: true, markCompose: true);
             EnsureVisibleMaterial();
 
             if (!Application.isPlaying && generateInEditMode && isActiveAndEnabled)
@@ -506,21 +698,23 @@ namespace Vortex.Procedural
             }
 
             Material current = meshRenderer.sharedMaterial;
-            bool isLegacyUnlit = current != null && current.shader != null &&
-                                current.shader.name == "Vortex/VertexColorUnlit";
+            bool isLegacyUnlit = current != null && current.shader != null && current.shader.name == "Vortex/VertexColorUnlit";
             bool isAuto = current != null && current.name.StartsWith("DynamicPlanet_AutoMaterial");
             bool isUnsupported = current != null && current.shader != null &&
                                  current.shader.name != "Standard" &&
                                  current.shader.name != "Universal Render Pipeline/Lit" &&
-                                 current.shader.name != "HDRP/Lit";
+                                 current.shader.name != "HDRP/Lit" &&
+                                 current.shader.name != "Vortex/DynamicMoonSurface";
 
-            bool shouldCreateAutoMaterial = current == null || isAuto || isLegacyUnlit || isUnsupported;
+            Shader shader = FindBestRenderShader();
+            bool shaderChanged = current != null && isAuto && shader != null && current.shader != shader;
+
+            bool shouldCreateAutoMaterial = current == null || isAuto || isLegacyUnlit || isUnsupported || forceHdrpLitMaterial || shaderChanged;
             if (!shouldCreateAutoMaterial)
             {
                 return;
             }
 
-            Shader shader = FindBestRenderShader();
             if (shader == null)
             {
                 if (!hasLoggedMissingRenderShader)
@@ -535,14 +729,9 @@ namespace Vortex.Procedural
             if (autoMaterial != null)
             {
                 DestroyImmediate(autoMaterial);
-                autoMaterial = null;
             }
 
-            autoMaterial = new Material(shader)
-            {
-                name = "DynamicPlanet_AutoMaterial"
-            };
-
+            autoMaterial = new Material(shader) { name = "DynamicPlanet_AutoMaterial" };
             if (autoMaterial.HasProperty("_SurfaceType")) autoMaterial.SetFloat("_SurfaceType", 0f);
             if (autoMaterial.HasProperty("_AlphaCutoffEnable")) autoMaterial.SetFloat("_AlphaCutoffEnable", 0f);
             if (autoMaterial.HasProperty("_BlendMode")) autoMaterial.SetFloat("_BlendMode", 0f);
@@ -551,16 +740,65 @@ namespace Vortex.Procedural
             if (autoMaterial.HasProperty("_DoubleSidedNormalMode")) autoMaterial.SetFloat("_DoubleSidedNormalMode", 0f);
             if (autoMaterial.HasProperty("_CullMode")) autoMaterial.SetFloat("_CullMode", 0f);
             if (autoMaterial.HasProperty("_BaseColor")) autoMaterial.SetColor("_BaseColor", Color.white);
-            if (autoMaterial.HasProperty("_EmissiveColor")) autoMaterial.SetColor("_EmissiveColor", Color.black);
             if (autoMaterial.HasProperty("_Color")) autoMaterial.SetColor("_Color", Color.white);
-
             meshRenderer.sharedMaterial = autoMaterial;
         }
 
-        private static Shader FindBestRenderShader()
+        private void ApplyRuntimeMaterialProperties()
+        {
+            if (meshRenderer == null || meshRenderer.sharedMaterial == null || !runtimeDataReady)
+            {
+                return;
+            }
+
+            Material material = meshRenderer.sharedMaterial;
+            if (runtimeData.bodyClass == BodyClass.Moon)
+            {
+                MoonSurfaceConfig surface = runtimeData.moonSurfaceConfig;
+                if (material.HasProperty("_MoonNoiseTex")) material.SetTexture("_MoonNoiseTex", surface.mainTexture);
+                if (material.HasProperty("_CraterRayTex")) material.SetTexture("_CraterRayTex", surface.craterRayTexture);
+                if (material.HasProperty("_FlatSurfaceTex")) material.SetTexture("_FlatSurfaceTex", surface.flatSurfaceTexture);
+                if (material.HasProperty("_SteepSurfaceTex")) material.SetTexture("_SteepSurfaceTex", surface.steepSurfaceTexture);
+                if (material.HasProperty("_MoonNoiseScale")) material.SetFloat("_MoonNoiseScale", Mathf.Max(0.0001f, surface.mainTextureScale));
+                if (material.HasProperty("_FlatSurfaceScale")) material.SetFloat("_FlatSurfaceScale", Mathf.Max(0.0001f, surface.flatSurfaceScale));
+                if (material.HasProperty("_SteepSurfaceScale")) material.SetFloat("_SteepSurfaceScale", Mathf.Max(0.0001f, surface.steepSurfaceScale));
+                if (material.HasProperty("_TextureBlendStrength")) material.SetFloat("_TextureBlendStrength", Mathf.Clamp01(surface.textureBlendStrength));
+                if (material.HasProperty("_EjectaBrightness")) material.SetFloat("_EjectaBrightness", Mathf.Clamp(surface.ejectaBrightness, 0f, 2f));
+                if (material.HasProperty("_SteepDarkening")) material.SetFloat("_SteepDarkening", Mathf.Clamp01(surface.steepDarkening));
+                if (material.HasProperty("_Glossiness")) material.SetFloat("_Glossiness", 0.2f);
+                if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", 0.2f);
+                if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0.02f);
+            }
+        }
+
+        private static float EstimateRequiredPaddingMultiplier(RuntimeBodyData data)
+        {
+            float maxDisplacement = Mathf.Abs(data.baseShapeConfig.radiusBias) * data.radius;
+            maxDisplacement += data.baseShapeConfig.commonOffset.magnitude;
+
+            if (data.shapeModel == ShapeModel.Moon)
+            {
+                maxDisplacement += data.moonShapeConfig.shape.amplitude;
+                maxDisplacement += data.moonShapeConfig.ridgeA.amplitude;
+                maxDisplacement += data.moonShapeConfig.ridgeB.amplitude;
+                maxDisplacement += data.moonShapeConfig.craterDepth * data.radius * 1.5f;
+            }
+            else
+            {
+                maxDisplacement += Mathf.Abs(data.planetShapeConfig.continent.amplitude);
+                maxDisplacement += Mathf.Abs(data.planetShapeConfig.mountain.amplitude);
+                maxDisplacement += Mathf.Abs(data.planetShapeConfig.detail.amplitude);
+                maxDisplacement += Mathf.Abs(data.planetShapeConfig.oceanFloorDepth);
+            }
+
+            return 1f + Mathf.Clamp(maxDisplacement / Mathf.Max(1f, data.radius), 0.12f, 0.55f);
+        }
+
+        private Shader FindBestRenderShader()
         {
             string[] shaderNames =
             {
+                runtimeDataReady && runtimeData.bodyClass == BodyClass.Moon ? "Vortex/DynamicMoonSurface" : null,
                 "HDRP/Lit",
                 "Universal Render Pipeline/Lit",
                 "Standard",
@@ -569,6 +807,11 @@ namespace Vortex.Procedural
 
             for (int i = 0; i < shaderNames.Length; i++)
             {
+                if (string.IsNullOrEmpty(shaderNames[i]))
+                {
+                    continue;
+                }
+
                 Shader s = Shader.Find(shaderNames[i]);
                 if (s != null)
                 {
@@ -578,6 +821,5 @@ namespace Vortex.Procedural
 
             return null;
         }
-
     }
 }

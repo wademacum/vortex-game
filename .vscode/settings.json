@@ -67,6 +67,6 @@
         "*.sln": "*.csproj",
         "*.slnx": "*.csproj"
     },
-    "dotnet.defaultSolution": "vortex.slnx",
+    "dotnet.defaultSolution": "vortex-game.slnx",
     "dotnet.enableWorkspaceBasedDevelopment": false
 }

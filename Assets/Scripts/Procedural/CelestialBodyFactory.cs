@@ -84,16 +84,60 @@ namespace Vortex.Procedural
 
         private static RuntimeBodyData BuildRuntimeData(CelestialBodyTemplate template, ref Random rng, bool randomizeRanges)
         {
+            ShapeModel shapeModel = ResolveShapeModel(template.bodyClass);
+            ShadingModel shadingModel = ResolveShadingModel(template.bodyClass);
+
+            BaseShapeConfig baseShapeConfig = default;
+            PlanetShapeConfig planetShapeConfig = default;
+            MoonShapeConfig moonShapeConfig = default;
+            PlanetShadingConfig planetShadingConfig = default;
+            MoonShadingConfig moonShadingConfig = default;
+            MoonSurfaceConfig moonSurfaceConfig = default;
+
+            if (template is PlanetTemplate planetTemplate)
+            {
+                baseShapeConfig = planetTemplate.baseShapeConfig;
+                planetShapeConfig = planetTemplate.planetShapeConfig;
+                planetShadingConfig = planetTemplate.planetShadingConfig;
+            }
+            else if (template is MoonTemplate moonTemplate)
+            {
+                baseShapeConfig = moonTemplate.baseShapeConfig;
+                moonShapeConfig = moonTemplate.moonShapeConfig;
+                moonShadingConfig = moonTemplate.moonShadingConfig;
+                moonSurfaceConfig = moonTemplate.moonSurfaceConfig;
+            }
+            /*
+            else if (template is AsteroidClusterTemplate asteroidTemplate)
+            {
+                baseShapeConfig = asteroidTemplate.baseShapeConfig;
+                moonShapeConfig.shape = asteroidTemplate.asteroidShapeConfig.baseShape;
+                moonShapeConfig.ridgeA = asteroidTemplate.asteroidShapeConfig.detailA;
+                moonShapeConfig.ridgeB = asteroidTemplate.asteroidShapeConfig.detailB;
+                moonShadingConfig.biomePointCount = asteroidTemplate.asteroidShadingConfig.albedoSpotCount;
+                moonShadingConfig.biomeRadiusRange = asteroidTemplate.asteroidShadingConfig.albedoSpotRadiusRange;
+                moonShadingConfig.biomeWarpNoise = asteroidTemplate.asteroidShadingConfig.albedoSpotNoise;
+                moonShadingConfig.detailNoise = asteroidTemplate.asteroidShadingConfig.surfaceDetailNoise;
+                moonShadingConfig.detailWarpNoise = asteroidTemplate.asteroidShadingConfig.surfaceDetailNoise;
+                moonShadingConfig.candidatePoolSize = 0.25f;
+                moonShadingConfig.desiredEjectaRays = 0;
+                moonShadingConfig.ejectaRaysScale = 0f;
+                moonSurfaceConfig = asteroidTemplate.asteroidSurfaceConfig;
+            }
+            */
+
             return new RuntimeBodyData
             {
                 bodyClass = template.bodyClass,
                 generationMode = template.generationMode,
-            mass = randomizeRanges ? SampleRange(template.massRange, ref rng) : Midpoint(template.massRange),
-            radius = randomizeRanges ? SampleRange(template.radiusRange, ref rng) : Midpoint(template.radiusRange),
-            density = randomizeRanges ? SampleRange(template.densityRange, ref rng) : Midpoint(template.densityRange),
-            rotationSpeed = randomizeRanges ? SampleRange(template.rotationRange, ref rng) : Midpoint(template.rotationRange),
-            temperature = randomizeRanges ? SampleRange(template.temperatureRange, ref rng) : Midpoint(template.temperatureRange),
-            albedo = randomizeRanges ? SampleRange(template.albedoRange, ref rng) : Midpoint(template.albedoRange),
+                shapeModel = shapeModel,
+                shadingModel = shadingModel,
+                mass = randomizeRanges ? SampleRange(template.massRange, ref rng) : Midpoint(template.massRange),
+                radius = randomizeRanges ? SampleRange(template.radiusRange, ref rng) : Midpoint(template.radiusRange),
+                density = randomizeRanges ? SampleRange(template.densityRange, ref rng) : Midpoint(template.densityRange),
+                rotationSpeed = randomizeRanges ? SampleRange(template.rotationRange, ref rng) : Midpoint(template.rotationRange),
+                temperature = randomizeRanges ? SampleRange(template.temperatureRange, ref rng) : Midpoint(template.temperatureRange),
+                albedo = randomizeRanges ? SampleRange(template.albedoRange, ref rng) : Midpoint(template.albedoRange),
                 anomalyChance = Mathf.Clamp01(template.anomalyChance),
                 hasSurface = template.hasSurface,
                 hasAtmosphere = template.hasAtmosphere,
@@ -111,9 +155,45 @@ namespace Vortex.Procedural
                 meshAxialStretchAtFull = Mathf.Max(0f, template.meshAxialStretchAtFull),
                 meshRadialSqueezeAtFull = Mathf.Max(0f, template.meshRadialSqueezeAtFull),
                 noiseLayerConfig = template.noiseLayerConfig,
+                baseShapeConfig = baseShapeConfig,
+                planetShapeConfig = planetShapeConfig,
+                moonShapeConfig = moonShapeConfig,
+                planetShadingConfig = planetShadingConfig,
+                moonShadingConfig = moonShadingConfig,
+                moonSurfaceConfig = moonSurfaceConfig,
                 biomeColorCurves = template.biomeColorCurves,
                 emissiveRange = template.emissiveRange
             };
+        }
+
+        private static ShapeModel ResolveShapeModel(BodyClass bodyClass)
+        {
+            switch (bodyClass)
+            {
+                case BodyClass.Planet:
+                    return ShapeModel.Planet;
+                case BodyClass.Moon:
+                    return ShapeModel.Moon;
+                //case BodyClass.AsteroidCluster:
+                //    return ShapeModel.Moon;
+                default:
+                    return ShapeModel.Generic;
+            }
+        }
+
+        private static ShadingModel ResolveShadingModel(BodyClass bodyClass)
+        {
+            switch (bodyClass)
+            {
+                case BodyClass.Planet:
+                    return ShadingModel.PlanetBands;
+                case BodyClass.Moon:
+                    return ShadingModel.MoonBiomes;
+                //case BodyClass.AsteroidCluster:
+                //    return ShadingModel.MoonBiomes;
+                default:
+                    return ShadingModel.VertexColor;
+            }
         }
 
         private static float SampleRange(Vector2 range, ref Random rng)

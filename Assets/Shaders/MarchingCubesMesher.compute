@@ -111,31 +111,31 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     cornerCoords[7] = coord + int3(0, 1, 1);
 
     int cubeConfiguration = 0;
-    for (int i = 0; i < 8; i++)
+    for (int cornerIndex = 0; cornerIndex < 8; cornerIndex++)
     {
-        if (SampleSdf(cornerCoords[i]) < _IsoLevel)
+        if (SampleSdf(cornerCoords[cornerIndex]) < _IsoLevel)
         {
-            cubeConfiguration |= (1 << i);
+            cubeConfiguration |= (1 << cornerIndex);
         }
     }
 
     int edgeIndices[16] = triangulation[cubeConfiguration];
-    for (int i = 0; i < 16; i += 3)
+    for (int triEdgeIndex = 0; triEdgeIndex < 16; triEdgeIndex += 3)
     {
-        if (edgeIndices[i] == -1)
+        if (edgeIndices[triEdgeIndex] == -1)
         {
             break;
         }
 
-        int edgeIndexA = edgeIndices[i];
+        int edgeIndexA = edgeIndices[triEdgeIndex];
         int a0 = cornerIndexAFromEdge[edgeIndexA];
         int a1 = cornerIndexBFromEdge[edgeIndexA];
 
-        int edgeIndexB = edgeIndices[i + 1];
+        int edgeIndexB = edgeIndices[triEdgeIndex + 1];
         int b0 = cornerIndexAFromEdge[edgeIndexB];
         int b1 = cornerIndexBFromEdge[edgeIndexB];
 
-        int edgeIndexC = edgeIndices[i + 2];
+        int edgeIndexC = edgeIndices[triEdgeIndex + 2];
         int c0 = cornerIndexAFromEdge[edgeIndexC];
         int c1 = cornerIndexBFromEdge[edgeIndexC];
 

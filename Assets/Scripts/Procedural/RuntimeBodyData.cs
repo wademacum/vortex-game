@@ -6,6 +6,8 @@ namespace Vortex.Procedural
     {
         public BodyClass bodyClass;
         public GenerationMode generationMode;
+        public ShapeModel shapeModel;
+        public ShadingModel shadingModel;
 
         public float mass;
         public float radius;
@@ -34,6 +36,12 @@ namespace Vortex.Procedural
         public float meshRadialSqueezeAtFull;
 
         public NoiseLayerConfig noiseLayerConfig;
+        public BaseShapeConfig baseShapeConfig;
+        public PlanetShapeConfig planetShapeConfig;
+        public MoonShapeConfig moonShapeConfig;
+        public PlanetShadingConfig planetShadingConfig;
+        public MoonShadingConfig moonShadingConfig;
+        public MoonSurfaceConfig moonSurfaceConfig;
         public Gradient[] biomeColorCurves;
         public Vector2 emissiveRange;
     }

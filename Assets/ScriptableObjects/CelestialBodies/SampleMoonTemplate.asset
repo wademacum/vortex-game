@@ -14,35 +14,35 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Vortex.Procedural.MoonTemplate
   bodyClass: 1
   spawnWeight: 0.8
-  massRange: {x: 5000, y: 40000}
-  radiusRange: {x: 35, y: 110}
-  densityRange: {x: 1.5, y: 5}
-  rotationRange: {x: 0.1, y: 3}
-  temperatureRange: {x: 120, y: 260}
-  albedoRange: {x: 0.1, y: 0.45}
+  massRange: {x: 9855.419, y: 37195.043}
+  radiusRange: {x: 109.27397, y: 161.31897}
+  densityRange: {x: 1.8, y: 4.8}
+  rotationRange: {x: 0.05, y: 1.2}
+  temperatureRange: {x: 140.98486, y: 252.06595}
+  albedoRange: {x: 0.08, y: 0.45}
   generationMode: 1
   noiseLayerConfig:
     continent:
-      scale: 0.01
+      scale: 1.9148402
       octaves: 4
-      amplitude: 14
-      persistence: 0.5
-      lacunarity: 2
-      offset: {x: 17, y: 31, z: 53}
+      amplitude: 0.46647522
+      persistence: 0.64027506
+      lacunarity: 1.9741001
+      offset: {x: 195.87782, y: 135.1754, z: 121.12985}
     mountain:
-      scale: 0.03
+      scale: 1.2630374
       octaves: 4
-      amplitude: 6
-      persistence: 0.55
-      lacunarity: 2
-      offset: {x: 113, y: 79, z: 41}
+      amplitude: 1.2506543
+      persistence: 0.5207275
+      lacunarity: 1.8338552
+      offset: {x: 102.09233, y: 249.71582, z: 192.79095}
     detail:
-      scale: 0.08
-      octaves: 3
-      amplitude: 1.5
-      persistence: 0.5
-      lacunarity: 2
-      offset: {x: 199, y: 157, z: 89}
+      scale: 1.2858211
+      octaves: 4
+      amplitude: 0.5281992
+      persistence: 0.4975247
+      lacunarity: 1.8165315
+      offset: {x: 141.22745, y: 87.94802, z: 187.3806}
   hasSurface: 1
   hasAtmosphere: 0
   hasEventHorizon: 0
@@ -59,6 +59,133 @@ MonoBehaviour:
   meshTidalMaxThreshold: 2
   meshAxialStretchAtFull: 1.6
   meshRadialSqueezeAtFull: 0.55
-  biomeColorCurves: []
+  biomeColorCurves:
+  - serializedVersion: 2
+    key0: {r: 0.24914418, g: 0.24307232, b: 0.25068995, a: 1}
+    key1: {r: 0.43747264, g: 0.43824008, b: 0.44455004, a: 1}
+    key2: {r: 0, g: 0, b: 0, a: 0}
+    key3: {r: 0, g: 0, b: 0, a: 0}
+    key4: {r: 0, g: 0, b: 0, a: 0}
+    key5: {r: 0, g: 0, b: 0, a: 0}
+    key6: {r: 0, g: 0, b: 0, a: 0}
+    key7: {r: 0, g: 0, b: 0, a: 0}
+    ctime0: 0
+    ctime1: 65535
+    ctime2: 0
+    ctime3: 0
+    ctime4: 0
+    ctime5: 0
+    ctime6: 0
+    ctime7: 0
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: -1
+    m_NumColorKeys: 2
+    m_NumAlphaKeys: 2
+  - serializedVersion: 2
+    key0: {r: 0.43747264, g: 0.43824008, b: 0.44455004, a: 1}
+    key1: {r: 0.6946242, g: 0.8235899, b: 0.65342855, a: 1}
+    key2: {r: 0, g: 0, b: 0, a: 0}
+    key3: {r: 0, g: 0, b: 0, a: 0}
+    key4: {r: 0, g: 0, b: 0, a: 0}
+    key5: {r: 0, g: 0, b: 0, a: 0}
+    key6: {r: 0, g: 0, b: 0, a: 0}
+    key7: {r: 0, g: 0, b: 0, a: 0}
+    ctime0: 0
+    ctime1: 65535
+    ctime2: 0
+    ctime3: 0
+    ctime4: 0
+    ctime5: 0
+    ctime6: 0
+    ctime7: 0
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: -1
+    m_NumColorKeys: 2
+    m_NumAlphaKeys: 2
   emissiveRange: {x: 0, y: 0.2}
-  changeVersion: 0
+  changeVersion: 964
+  baseShapeConfig:
+    commonOffset: {x: -1.2127005, y: 1.7701161, z: 1.8420823}
+    radiusBias: -0.002491078
+    verticalSquash: 0.9982414
+  moonShapeConfig:
+    shape:
+      scale: 1.9148402
+      octaves: 4
+      amplitude: 0.46647522
+      persistence: 0.64027506
+      lacunarity: 1.9741001
+      offset: {x: 195.87782, y: 135.1754, z: 121.12985}
+    ridgeA:
+      scale: 1.2630374
+      octaves: 4
+      amplitude: 1.2506543
+      persistence: 0.5207275
+      lacunarity: 1.8338552
+      offset: {x: 102.09233, y: 249.71582, z: 192.79095}
+    ridgeB:
+      scale: 1.2858211
+      octaves: 4
+      amplitude: 0.5281992
+      persistence: 0.4975247
+      lacunarity: 1.8165315
+      offset: {x: 141.22745, y: 87.94802, z: 187.3806}
+    craterCount: 148
+    craterRadiusRange: {x: 0.015, y: 0.085}
+    craterDepth: 0.04470528
+    craterRimSharpness: 2.4675345
+    craterNoiseScale: 0.9046554
+  moonShadingConfig:
+    biomePointCount: 20
+    biomeRadiusRange: {x: 0.040382046, y: 0.16351597}
+    biomeWarpNoise:
+      scale: 0.014684091
+      octaves: 2
+      amplitude: 1.1468217
+      persistence: 0.470848
+      lacunarity: 1.8953332
+      offset: {x: 18.847069, y: 12.514167, z: 250.56805}
+    detailNoise:
+      scale: 0.08123205
+      octaves: 3
+      amplitude: 0.7188169
+      persistence: 0.46011263
+      lacunarity: 2.1622074
+      offset: {x: 254.29434, y: 101.194244, z: 14.837044}
+    detailWarpNoise:
+      scale: 0.017149946
+      octaves: 2
+      amplitude: 0.4555156
+      persistence: 0.5985644
+      lacunarity: 2.1383944
+      offset: {x: 52.161774, y: 161.94885, z: 220.97163}
+    candidatePoolSize: 0.2568068
+    desiredEjectaRays: 2
+    ejectaRaysScale: 11.264135
+  moonSurfaceConfig:
+    mainTexture: {fileID: 2800000, guid: 9c22c104e284af144a3405d608b140c1, type: 3}
+    craterRayTexture: {fileID: 2800000, guid: cca326733496e2048ae1a7f83319abbd, type: 3}
+    flatSurfaceTexture: {fileID: 2800000, guid: 395267c95521ba04abd4c5979a0458ab, type: 3}
+    steepSurfaceTexture: {fileID: 2800000, guid: 53e47fadc6555b5408b2e202b03e3b1a, type: 3}
+    mainTextureScale: 0.019889692
+    flatSurfaceScale: 0.04312641
+    steepSurfaceScale: 0.055620164
+    textureBlendStrength: 0.29281437
+    ejectaBrightness: 0.22971083
+    steepDarkening: 0.1702496

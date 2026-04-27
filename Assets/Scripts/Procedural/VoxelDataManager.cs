@@ -27,11 +27,16 @@ namespace Vortex.Procedural
         [SerializeField, Min(8)] private int gridResolution = 64;
         [SerializeField, Min(0.001f)] private float voxelSize = 1f;
 
-        private const string KernelName = "CSMain";
+        private const string PlanetKernelName = "CSPlanetVoxel";
+        private const string MoonKernelName = "CSMoonVoxel";
+        private const string GenericKernelName = "CSPlanetVoxel";
         private const int ThreadsPerAxis = 8;
 
-        private int kernelIndex = -1;
+        private int planetKernelIndex = -1;
+        private int moonKernelIndex = -1;
+        private int genericKernelIndex = -1;
         private ComputeBuffer sdfBuffer;
+        private ComputeBuffer composeBuffer;
         private float[] cpuReadback;
         private bool hasLoggedMissingGenerator;
         private bool hasLoggedMissingKernel;
@@ -98,15 +103,10 @@ namespace Vortex.Procedural
                 return;
             }
 
-            if (kernelIndex < 0)
+            if (!ResolveKernelIndices())
             {
-                if (!voxelDataGenerator.HasKernel(KernelName))
-                {
-                    LogMissingKernelOnce();
-                    return;
-                }
-
-                kernelIndex = voxelDataGenerator.FindKernel(KernelName);
+                LogMissingKernelOnce();
+                return;
             }
 
             int voxelCount = VoxelCount;
@@ -120,40 +120,25 @@ namespace Vortex.Procedural
             cpuReadback = new float[voxelCount];
         }
 
-        public bool Generate(RuntimeBodyData bodyData, Vector3 gridOrigin)
+        public bool Generate(RuntimeBodyData bodyData, Vector3 gridOrigin, SdfComposeCommand[] composeCommands = null)
         {
             EnsureInitialized();
-
-            if (voxelDataGenerator != null && !voxelDataGenerator.HasKernel(KernelName))
+            if (!ResolveKernelIndices())
             {
-                kernelIndex = -1;
                 LogMissingKernelOnce();
                 return false;
             }
 
-            if (voxelDataGenerator != null && kernelIndex < 0 && voxelDataGenerator.HasKernel(KernelName))
+            int kernelIndex = ResolveKernelIndex(bodyData.shapeModel);
+            if (kernelIndex < 0 || sdfBuffer == null)
             {
-                kernelIndex = voxelDataGenerator.FindKernel(KernelName);
-            }
-
-            if (!IsReady())
-            {
-                if (voxelDataGenerator == null)
-                {
-                    LogMissingGeneratorOnce();
-                }
-                else
-                {
-                    LogMissingKernelOnce();
-                }
-
                 return false;
             }
 
-            PushCommonParams(bodyData, gridOrigin);
-            PushNoiseLayer("Continent", bodyData.noiseLayerConfig.continent);
-            PushNoiseLayer("Mountain", bodyData.noiseLayerConfig.mountain);
-            PushNoiseLayer("Detail", bodyData.noiseLayerConfig.detail);
+            PushCommonParams(kernelIndex, bodyData, gridOrigin);
+            PushPlanetShapeParams(kernelIndex, bodyData.planetShapeConfig, bodyData.noiseLayerConfig);
+            PushMoonShapeParams(kernelIndex, bodyData.moonShapeConfig);
+            PushComposeCommands(kernelIndex, composeCommands);
 
             voxelDataGenerator.SetBuffer(kernelIndex, "_SdfOutput", sdfBuffer);
 
@@ -164,7 +149,7 @@ namespace Vortex.Procedural
 
         public VoxelSdfDistribution ReadbackDistribution()
         {
-            if (!IsReady())
+            if (sdfBuffer == null)
             {
                 throw new InvalidOperationException("SDF buffer is not ready.");
             }
@@ -202,17 +187,119 @@ namespace Vortex.Procedural
             return new VoxelSdfDistribution(negative, positive, min, max);
         }
 
-        private bool IsReady()
+        private bool ResolveKernelIndices()
         {
-            return voxelDataGenerator != null && kernelIndex >= 0 && sdfBuffer != null;
+            if (voxelDataGenerator == null)
+            {
+                return false;
+            }
+
+            if (planetKernelIndex >= 0 && moonKernelIndex >= 0 && genericKernelIndex >= 0)
+            {
+                return true;
+            }
+
+            if (!voxelDataGenerator.HasKernel(PlanetKernelName) ||
+                !voxelDataGenerator.HasKernel(MoonKernelName) ||
+                !voxelDataGenerator.HasKernel(GenericKernelName))
+            {
+                return false;
+            }
+
+            planetKernelIndex = voxelDataGenerator.FindKernel(PlanetKernelName);
+            moonKernelIndex = voxelDataGenerator.FindKernel(MoonKernelName);
+            genericKernelIndex = voxelDataGenerator.FindKernel(GenericKernelName);
+            return true;
         }
 
-        private void PushCommonParams(RuntimeBodyData bodyData, Vector3 gridOrigin)
+        private int ResolveKernelIndex(ShapeModel shapeModel)
+        {
+            switch (shapeModel)
+            {
+                case ShapeModel.Moon:
+                    return moonKernelIndex;
+                case ShapeModel.Planet:
+                    return planetKernelIndex;
+                default:
+                    return genericKernelIndex;
+            }
+        }
+
+        private void PushCommonParams(int kernelIndex, RuntimeBodyData bodyData, Vector3 gridOrigin)
         {
             voxelDataGenerator.SetInt("_GridResolution", gridResolution);
             voxelDataGenerator.SetFloat("_VoxelSize", voxelSize);
             voxelDataGenerator.SetVector("_GridOrigin", new Vector4(gridOrigin.x, gridOrigin.y, gridOrigin.z, 0f));
             voxelDataGenerator.SetFloat("_BaseRadius", Mathf.Max(0f, bodyData.radius));
+            voxelDataGenerator.SetVector("_BaseCommonOffset", new Vector4(
+                bodyData.baseShapeConfig.commonOffset.x,
+                bodyData.baseShapeConfig.commonOffset.y,
+                bodyData.baseShapeConfig.commonOffset.z,
+                bodyData.baseShapeConfig.radiusBias));
+            voxelDataGenerator.SetFloat("_BaseVerticalSquash", Mathf.Max(0.1f, bodyData.baseShapeConfig.verticalSquash));
+        }
+
+        private void PushPlanetShapeParams(int kernelIndex, PlanetShapeConfig config, NoiseLayerConfig fallback)
+        {
+            NoiseLayer continent = ChooseLayer(config.continent, fallback.continent);
+            NoiseLayer mountain = ChooseLayer(config.mountain, fallback.mountain);
+            NoiseLayer detail = ChooseLayer(config.detail, fallback.detail);
+            NoiseLayer mask = config.mask.scale > 0f ? config.mask : fallback.continent;
+
+            PushNoiseLayer("PlanetContinent", continent);
+            PushNoiseLayer("PlanetMountain", mountain);
+            PushNoiseLayer("PlanetDetail", detail);
+            PushNoiseLayer("PlanetMask", mask);
+
+            voxelDataGenerator.SetFloat("_PlanetOceanDepthMultiplier", Mathf.Max(0f, config.oceanDepthMultiplier));
+            voxelDataGenerator.SetFloat("_PlanetOceanFloorDepth", Mathf.Max(0f, config.oceanFloorDepth));
+            voxelDataGenerator.SetFloat("_PlanetOceanFloorSmoothing", Mathf.Max(0f, config.oceanFloorSmoothing));
+            voxelDataGenerator.SetFloat("_PlanetMountainBlend", Mathf.Max(0.001f, config.mountainBlend));
+        }
+
+        private void PushMoonShapeParams(int kernelIndex, MoonShapeConfig config)
+        {
+            PushNoiseLayer("MoonShape", config.shape);
+            PushNoiseLayer("MoonRidgeA", config.ridgeA);
+            PushNoiseLayer("MoonRidgeB", config.ridgeB);
+            voxelDataGenerator.SetInt("_MoonCraterCount", Mathf.Max(0, config.craterCount));
+            voxelDataGenerator.SetVector("_MoonCraterRadiusRange", config.craterRadiusRange);
+            voxelDataGenerator.SetFloat("_MoonCraterDepth", Mathf.Max(0f, config.craterDepth));
+            voxelDataGenerator.SetFloat("_MoonCraterRimSharpness", Mathf.Max(0.01f, config.craterRimSharpness));
+            voxelDataGenerator.SetFloat("_MoonCraterNoiseScale", Mathf.Max(0.001f, config.craterNoiseScale));
+        }
+
+        private void PushComposeCommands(int kernelIndex, SdfComposeCommand[] composeCommands)
+        {
+            int count = composeCommands != null ? composeCommands.Length : 0;
+            int bufferCount = Mathf.Max(1, count);
+            if (composeBuffer == null || composeBuffer.count != bufferCount)
+            {
+                if (composeBuffer != null)
+                {
+                    composeBuffer.Release();
+                    composeBuffer.Dispose();
+                }
+
+                composeBuffer = new ComputeBuffer(bufferCount, SdfComposeCommand.Stride);
+            }
+
+            if (count > 0)
+            {
+                composeBuffer.SetData(composeCommands);
+            }
+            else
+            {
+                composeBuffer.SetData(new[] { default(SdfComposeCommand) });
+            }
+
+            voxelDataGenerator.SetBuffer(kernelIndex, "_ComposeCommands", composeBuffer);
+            voxelDataGenerator.SetInt("_ComposeCommandCount", count);
+        }
+
+        private static NoiseLayer ChooseLayer(NoiseLayer preferred, NoiseLayer fallback)
+        {
+            return preferred.scale > 0f || preferred.amplitude > 0f ? preferred : fallback;
         }
 
         private void PushNoiseLayer(string prefix, NoiseLayer layer)
@@ -234,8 +321,17 @@ namespace Vortex.Procedural
                 sdfBuffer = null;
             }
 
+            if (composeBuffer != null)
+            {
+                composeBuffer.Release();
+                composeBuffer.Dispose();
+                composeBuffer = null;
+            }
+
             cpuReadback = null;
-            kernelIndex = -1;
+            planetKernelIndex = -1;
+            moonKernelIndex = -1;
+            genericKernelIndex = -1;
         }
 
         public void ReleaseResources()
@@ -329,7 +425,7 @@ namespace Vortex.Procedural
             }
 
             hasLoggedMissingKernel = true;
-            Debug.LogWarning($"[VoxelDataManager] Kernel '{KernelName}' not found in assigned compute shader. Check shader compile errors.", this);
+            Debug.LogWarning("[VoxelDataManager] One or more voxel kernels are missing. Check shader compile errors.", this);
         }
     }
 }

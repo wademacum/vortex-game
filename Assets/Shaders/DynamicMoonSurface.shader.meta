@@ -1,0 +1,13 @@
+fileFormatVersion: 2
+guid: 8cf650518e8c41b4082064f3a6ac8c4a
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures:
+  - _MoonNoiseTex: {fileID: 2800000, guid: 9c22c104e284af144a3405d608b140c1, type: 3}
+  - _CraterRayTex: {fileID: 2800000, guid: cca326733496e2048ae1a7f83319abbd, type: 3}
+  - _FlatSurfaceTex: {fileID: 2800000, guid: 53e47fadc6555b5408b2e202b03e3b1a, type: 3}
+  - _SteepSurfaceTex: {fileID: 2800000, guid: 395267c95521ba04abd4c5979a0458ab, type: 3}
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

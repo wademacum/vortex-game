@@ -1,32 +1,91 @@
-#pragma kernel CSMain
+#pragma kernel CSPlanetVoxel
+#pragma kernel CSMoonVoxel
 
 RWStructuredBuffer<float> _SdfOutput;
+
+struct SdfComposeCommand
+{
+    int operation;
+    int shape;
+    float3 pointA;
+    float radiusA;
+    float3 pointB;
+    float radiusB;
+    float strength;
+    float falloff;
+    int flags;
+    int otherBodyId;
+};
+
+StructuredBuffer<SdfComposeCommand> _ComposeCommands;
+int _ComposeCommandCount;
 
 int _GridResolution;
 float _VoxelSize;
 float3 _GridOrigin;
 float _BaseRadius;
+float4 _BaseCommonOffset;
+float _BaseVerticalSquash;
 
-float _ContinentScale;
-int _ContinentOctaves;
-float _ContinentAmplitude;
-float _ContinentPersistence;
-float _ContinentLacunarity;
-float3 _ContinentOffset;
+float _PlanetContinentScale;
+int _PlanetContinentOctaves;
+float _PlanetContinentAmplitude;
+float _PlanetContinentPersistence;
+float _PlanetContinentLacunarity;
+float3 _PlanetContinentOffset;
 
-float _MountainScale;
-int _MountainOctaves;
-float _MountainAmplitude;
-float _MountainPersistence;
-float _MountainLacunarity;
-float3 _MountainOffset;
+float _PlanetMountainScale;
+int _PlanetMountainOctaves;
+float _PlanetMountainAmplitude;
+float _PlanetMountainPersistence;
+float _PlanetMountainLacunarity;
+float3 _PlanetMountainOffset;
 
-float _DetailScale;
-int _DetailOctaves;
-float _DetailAmplitude;
-float _DetailPersistence;
-float _DetailLacunarity;
-float3 _DetailOffset;
+float _PlanetDetailScale;
+int _PlanetDetailOctaves;
+float _PlanetDetailAmplitude;
+float _PlanetDetailPersistence;
+float _PlanetDetailLacunarity;
+float3 _PlanetDetailOffset;
+
+float _PlanetMaskScale;
+int _PlanetMaskOctaves;
+float _PlanetMaskAmplitude;
+float _PlanetMaskPersistence;
+float _PlanetMaskLacunarity;
+float3 _PlanetMaskOffset;
+
+float _PlanetOceanDepthMultiplier;
+float _PlanetOceanFloorDepth;
+float _PlanetOceanFloorSmoothing;
+float _PlanetMountainBlend;
+
+float _MoonShapeScale;
+int _MoonShapeOctaves;
+float _MoonShapeAmplitude;
+float _MoonShapePersistence;
+float _MoonShapeLacunarity;
+float3 _MoonShapeOffset;
+
+float _MoonRidgeAScale;
+int _MoonRidgeAOctaves;
+float _MoonRidgeAAmplitude;
+float _MoonRidgeAPersistence;
+float _MoonRidgeALacunarity;
+float3 _MoonRidgeAOffset;
+
+float _MoonRidgeBScale;
+int _MoonRidgeBOctaves;
+float _MoonRidgeBAmplitude;
+float _MoonRidgeBPersistence;
+float _MoonRidgeBLacunarity;
+float3 _MoonRidgeBOffset;
+
+int _MoonCraterCount;
+float2 _MoonCraterRadiusRange;
+float _MoonCraterDepth;
+float _MoonCraterRimSharpness;
+float _MoonCraterNoiseScale;
 
 uint Hash(uint x)
 {
@@ -41,6 +100,14 @@ uint Hash(uint x)
 float HashToUnitFloat(uint x)
 {
     return (Hash(x) & 0x00ffffff) / 16777215.0;
+}
+
+float3 HashDirection(uint seed)
+{
+    float z = HashToUnitFloat(seed * 2654435761u) * 2.0 - 1.0;
+    float angle = HashToUnitFloat(seed * 2246822519u) * 6.2831853;
+    float r = sqrt(saturate(1.0 - z * z));
+    return float3(cos(angle) * r, sin(angle) * r, z);
 }
 
 float ValueNoise3D(float3 p)
@@ -106,8 +173,187 @@ float Fbm(float3 p, float scale, int octaves, float amplitude, float persistence
     return sum;
 }
 
+float RidgeFbm(float3 p, float scale, int octaves, float amplitude, float persistence, float lacunarity)
+{
+    if (octaves <= 0 || amplitude <= 0.0 || scale <= 0.0)
+    {
+        return 0.0;
+    }
+
+    float sum = 0.0;
+    float freq = max(scale, 0.0001);
+    float amp = amplitude;
+
+    [loop]
+    for (int i = 0; i < octaves; i++)
+    {
+        float n = 1.0 - abs(ValueNoise3D(p * freq));
+        n *= n;
+        sum += n * amp;
+        freq *= max(lacunarity, 1.0);
+        amp *= persistence;
+    }
+
+    return sum;
+}
+
+float SmoothMax(float a, float b, float k)
+{
+    float h = saturate(0.5 + 0.5 * (a - b) / max(k, 0.0001));
+    return lerp(b, a, h) + max(k, 0.0001) * h * (1.0 - h);
+}
+
+float SmoothMin(float a, float b, float k)
+{
+    float h = max(k - abs(a - b), 0.0) / max(k, 0.0001);
+    return min(a, b) - h * h * k * 0.25;
+}
+
+float SphereSdf(float3 p, float3 center, float radius)
+{
+    return length(p - center) - radius;
+}
+
+float CapsuleSdf(float3 p, float3 a, float3 b, float radius)
+{
+    float3 pa = p - a;
+    float3 ba = b - a;
+    float h = saturate(dot(pa, ba) / max(dot(ba, ba), 0.0001));
+    return length(pa - ba * h) - radius;
+}
+
+float EvaluateBaseBodySdf(float3 localPos)
+{
+    float3 p = localPos + _BaseCommonOffset.xyz;
+    p.y /= max(_BaseVerticalSquash, 0.1);
+    return length(p) - (_BaseRadius * max(0.2, 1.0 + _BaseCommonOffset.w));
+}
+
+float3 SafeNormalize(float3 p)
+{
+    float lenSq = dot(p, p);
+    if (lenSq <= 0.000001)
+    {
+        return float3(0.0, 1.0, 0.0);
+    }
+
+    return p * rsqrt(lenSq);
+}
+
+float EvaluatePlanetDisplacement(float3 localPos)
+{
+    float continent = Fbm(localPos + _PlanetContinentOffset, _PlanetContinentScale, _PlanetContinentOctaves, _PlanetContinentAmplitude, _PlanetContinentPersistence, _PlanetContinentLacunarity);
+    continent = SmoothMax(continent, -_PlanetOceanFloorDepth, max(_PlanetOceanFloorSmoothing, 0.001));
+    if (continent < 0.0)
+    {
+        continent *= (1.0 + _PlanetOceanDepthMultiplier);
+    }
+
+    float mountain = RidgeFbm(localPos + _PlanetMountainOffset, _PlanetMountainScale, _PlanetMountainOctaves, _PlanetMountainAmplitude, _PlanetMountainPersistence, _PlanetMountainLacunarity);
+    float detail = Fbm(localPos + _PlanetDetailOffset, _PlanetDetailScale, _PlanetDetailOctaves, _PlanetDetailAmplitude, _PlanetDetailPersistence, _PlanetDetailLacunarity);
+    float mask = saturate(Fbm(localPos + _PlanetMaskOffset, _PlanetMaskScale, _PlanetMaskOctaves, _PlanetMaskAmplitude, _PlanetMaskPersistence, _PlanetMaskLacunarity) * max(_PlanetMountainBlend, 0.001));
+
+    return continent + mountain * mask + detail;
+}
+
+float EvaluateMoonCraters(float3 surfaceDir)
+{
+    float craterContribution = 0.0;
+    float craterWarpFrequency = max(_MoonCraterNoiseScale, 0.001) * 2.0;
+
+    [loop]
+    for (int i = 0; i < _MoonCraterCount; i++)
+    {
+        uint seed = (uint)(i + 1) * 9781u;
+        float3 centerDir = HashDirection(seed);
+        float radius = lerp(_MoonCraterRadiusRange.x, _MoonCraterRadiusRange.y, HashToUnitFloat(seed + 17u));
+        float depth = (_MoonCraterDepth * _BaseRadius) * lerp(0.65, 1.2, HashToUnitFloat(seed + 41u));
+        float angular = acos(saturate(dot(surfaceDir, centerDir))) / 3.14159265;
+        float craterDist = angular / max(radius, 0.001);
+        float edgeWarp = ValueNoise3D(surfaceDir * craterWarpFrequency + centerDir * 11.0 + float3(seed * 0.001, seed * 0.002, seed * 0.003));
+        craterDist *= 1.0 + edgeWarp * 0.05;
+
+        float bowl = saturate(1.0 - craterDist);
+        bowl = pow(bowl, max(_MoonCraterRimSharpness * 0.85, 0.01));
+
+        float floorMask = saturate(1.0 - craterDist / 0.72);
+        floorMask = pow(floorMask, 0.6);
+
+        float rim = saturate(1.0 - abs(craterDist - 0.92) / 0.14);
+        rim = pow(rim, max(_MoonCraterRimSharpness * 0.75, 0.01));
+
+        float ejecta = saturate(1.0 - abs(craterDist - 1.18) / 0.28);
+        ejecta = pow(ejecta, 2.2);
+
+        craterContribution -= bowl * depth;
+        craterContribution += floorMask * depth * 0.12;
+        craterContribution += rim * depth * 0.28;
+        craterContribution += ejecta * depth * 0.03;
+    }
+
+    return craterContribution;
+}
+
+float EvaluateMoonDisplacement(float3 localPos)
+{
+    float3 surfaceDir = SafeNormalize(localPos);
+    float craterDepth = EvaluateMoonCraters(surfaceDir);
+    float shapeNoise = Fbm(surfaceDir + _MoonShapeOffset, _MoonShapeScale, _MoonShapeOctaves, _MoonShapeAmplitude, _MoonShapePersistence, _MoonShapeLacunarity);
+    float ridgeNoise = RidgeFbm(surfaceDir + _MoonRidgeAOffset, _MoonRidgeAScale, _MoonRidgeAOctaves, _MoonRidgeAAmplitude, _MoonRidgeAPersistence, _MoonRidgeALacunarity);
+    float ridgeMask = saturate(Fbm(surfaceDir + _MoonRidgeBOffset, _MoonRidgeBScale, _MoonRidgeBOctaves, _MoonRidgeBAmplitude, _MoonRidgeBPersistence, _MoonRidgeBLacunarity) * 0.5 + 0.5);
+    float noiseSum = shapeNoise * 0.14 + ridgeNoise * ridgeMask * 0.06 + ridgeMask * (_MoonRidgeBAmplitude * 0.02);
+    return craterDepth + noiseSum;
+}
+
+float ApplyComposeCommand(float currentSdf, float3 localPos, SdfComposeCommand command)
+{
+    float otherSdf = 0.0;
+    if (command.shape == 0)
+    {
+        otherSdf = SphereSdf(localPos, command.pointA, command.radiusA);
+    }
+    else
+    {
+        otherSdf = CapsuleSdf(localPos, command.pointA, command.pointB, command.radiusA);
+    }
+
+    if (command.operation == 1)
+    {
+        return SmoothMin(currentSdf, otherSdf, max(command.strength, 0.001));
+    }
+
+    if (command.operation == 2)
+    {
+        return max(currentSdf, -otherSdf * max(command.strength, 0.001));
+    }
+
+    if (command.operation == 3)
+    {
+        return max(currentSdf, otherSdf);
+    }
+
+    return min(currentSdf, otherSdf);
+}
+
+float ComposeScene(float baseSdf, float3 localPos)
+{
+    float result = baseSdf;
+    [loop]
+    for (int i = 0; i < _ComposeCommandCount; i++)
+    {
+        result = ApplyComposeCommand(result, localPos, _ComposeCommands[i]);
+    }
+
+    return result;
+}
+
+float3 ResolveLocalPos(uint3 id)
+{
+    return _GridOrigin + (float3)id * _VoxelSize;
+}
+
 [numthreads(8, 8, 8)]
-void CSMain(uint3 id : SV_DispatchThreadID)
+void CSPlanetVoxel(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= (uint)_GridResolution || id.y >= (uint)_GridResolution || id.z >= (uint)_GridResolution)
     {
@@ -115,14 +361,21 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     }
 
     uint index = id.x + (uint)_GridResolution * (id.y + (uint)_GridResolution * id.z);
+    float3 localPos = ResolveLocalPos(id);
+    float sdf = EvaluateBaseBodySdf(localPos) - EvaluatePlanetDisplacement(localPos);
+    _SdfOutput[index] = ComposeScene(sdf, localPos);
+}
 
-    float3 worldPos = _GridOrigin + (float3)id * _VoxelSize;
-    float baseSdf = length(worldPos) - _BaseRadius;
+[numthreads(8, 8, 8)]
+void CSMoonVoxel(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)_GridResolution || id.y >= (uint)_GridResolution || id.z >= (uint)_GridResolution)
+    {
+        return;
+    }
 
-    float continent = Fbm(worldPos + _ContinentOffset, _ContinentScale, _ContinentOctaves, _ContinentAmplitude, _ContinentPersistence, _ContinentLacunarity);
-    float mountain = Fbm(worldPos + _MountainOffset, _MountainScale, _MountainOctaves, _MountainAmplitude, _MountainPersistence, _MountainLacunarity);
-    float detail = Fbm(worldPos + _DetailOffset, _DetailScale, _DetailOctaves, _DetailAmplitude, _DetailPersistence, _DetailLacunarity);
-
-    float noiseDisplacement = continent + mountain + detail;
-    _SdfOutput[index] = baseSdf - noiseDisplacement;
+    uint index = id.x + (uint)_GridResolution * (id.y + (uint)_GridResolution * id.z);
+    float3 localPos = ResolveLocalPos(id);
+    float sdf = EvaluateBaseBodySdf(localPos) - EvaluateMoonDisplacement(localPos);
+    _SdfOutput[index] = ComposeScene(sdf, localPos);
 }

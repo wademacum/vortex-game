@@ -18,34 +18,48 @@ namespace Vortex.Procedural
                 well.ApplyProceduralBody(data.mass, data.radius);
             }
 
+            bool allowComponentCreation = Application.isPlaying;
+
             StructuralResponseBody structural = target.GetComponent<StructuralResponseBody>();
             if (structural == null)
             {
-                structural = target.AddComponent<StructuralResponseBody>();
+                if (allowComponentCreation)
+                {
+                    structural = target.AddComponent<StructuralResponseBody>();
+                }
             }
 
-            bool canNova = data.bodyClass == BodyClass.Star || data.bodyClass == BodyClass.NeutronStar || data.bodyClass == BodyClass.Supergiant;
-            structural.ConfigureFromRuntimeData(
-                data.corePressureSupport,
-                data.fractureThreshold,
-                data.collapseThreshold,
-                data.novaThreshold,
-                data.structuralDamping,
-                canNova);
+            if (structural != null)
+            {
+                bool canNova = data.bodyClass == BodyClass.Star || data.bodyClass == BodyClass.NeutronStar || data.bodyClass == BodyClass.Supergiant;
+                structural.ConfigureFromRuntimeData(
+                    data.corePressureSupport,
+                    data.fractureThreshold,
+                    data.collapseThreshold,
+                    data.novaThreshold,
+                    data.structuralDamping,
+                    canNova);
+            }
 
             if (data.enableMeshNodeDeformation)
             {
                 MeshNodeDeformer deformer = target.GetComponent<MeshNodeDeformer>();
                 if (deformer == null)
                 {
-                    deformer = target.AddComponent<MeshNodeDeformer>();
+                    if (allowComponentCreation)
+                    {
+                        deformer = target.AddComponent<MeshNodeDeformer>();
+                    }
                 }
 
-                deformer.Configure(
-                    data.meshTidalStartThreshold,
-                    data.meshTidalMaxThreshold,
-                    data.meshAxialStretchAtFull,
-                    data.meshRadialSqueezeAtFull);
+                if (deformer != null)
+                {
+                    deformer.Configure(
+                        data.meshTidalStartThreshold,
+                        data.meshTidalMaxThreshold,
+                        data.meshAxialStretchAtFull,
+                        data.meshRadialSqueezeAtFull);
+                }
             }
         }
     }

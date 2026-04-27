@@ -14,40 +14,204 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Vortex.Procedural.PlanetTemplate
   bodyClass: 0
   spawnWeight: 1
-  massRange: {x: 50000, y: 150000}
-  radiusRange: {x: 80, y: 200}
-  densityRange: {x: 2, y: 6}
-  rotationRange: {x: 0.5, y: 8}
-  temperatureRange: {x: 220, y: 380}
-  albedoRange: {x: 0.2, y: 0.7}
+  massRange: {x: 93647.71, y: 208433.7}
+  radiusRange: {x: 212.98427, y: 269.96393}
+  densityRange: {x: 2.5, y: 6.5}
+  rotationRange: {x: 0.2, y: 3.5}
+  temperatureRange: {x: 250.54431, y: 497.7548}
+  albedoRange: {x: 0.2, y: 0.65}
   generationMode: 1
   noiseLayerConfig:
     continent:
-      scale: 0
-      octaves: 0
-      amplitude: 0
-      persistence: 0
-      lacunarity: 0
-      offset: {x: 0, y: 0, z: 0}
+      scale: 0.012152843
+      octaves: 5
+      amplitude: 24.023315
+      persistence: 0.5912161
+      lacunarity: 1.9119103
+      offset: {x: 115.1391, y: 170.71848, z: 198.5703}
     mountain:
-      scale: 0
-      octaves: 0
-      amplitude: 0
-      persistence: 0
-      lacunarity: 0
-      offset: {x: 0, y: 0, z: 0}
+      scale: 0.03096066
+      octaves: 3
+      amplitude: 7.479002
+      persistence: 0.5388107
+      lacunarity: 2.0642552
+      offset: {x: 162.6104, y: 209.43254, z: 245.07526}
     detail:
-      scale: 0
-      octaves: 0
-      amplitude: 0
-      persistence: 0
-      lacunarity: 0
-      offset: {x: 0, y: 0, z: 0}
+      scale: 0.10928219
+      octaves: 2
+      amplitude: 4.069432
+      persistence: 0.5456382
+      lacunarity: 2.0716736
+      offset: {x: 89.24129, y: 219.66304, z: 238.18263}
   hasSurface: 1
   hasAtmosphere: 1
   hasEventHorizon: 0
   supportsLanding: 1
   radiationHazard: 0
   anomalyChance: 0.1
-  biomeColorCurves: []
+  corePressureSupport: 10
+  fractureThreshold: 18
+  collapseThreshold: 24
+  novaThreshold: 1
+  structuralDamping: 4
+  enableMeshNodeDeformation: 1
+  meshTidalStartThreshold: 0.02
+  meshTidalMaxThreshold: 2
+  meshAxialStretchAtFull: 1.6
+  meshRadialSqueezeAtFull: 0.55
+  biomeColorCurves:
+  - serializedVersion: 2
+    key0: {r: 0.9697828, g: 0.61523026, b: 0.8935071, a: 1}
+    key1: {r: 0.34682503, g: 0.6965731, b: 0.4160406, a: 1}
+    key2: {r: 0, g: 0, b: 0, a: 0}
+    key3: {r: 0, g: 0, b: 0, a: 0}
+    key4: {r: 0, g: 0, b: 0, a: 0}
+    key5: {r: 0, g: 0, b: 0, a: 0}
+    key6: {r: 0, g: 0, b: 0, a: 0}
+    key7: {r: 0, g: 0, b: 0, a: 0}
+    ctime0: 0
+    ctime1: 65535
+    ctime2: 0
+    ctime3: 0
+    ctime4: 0
+    ctime5: 0
+    ctime6: 0
+    ctime7: 0
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: -1
+    m_NumColorKeys: 2
+    m_NumAlphaKeys: 2
+  - serializedVersion: 2
+    key0: {r: 0.34682503, g: 0.6965731, b: 0.4160406, a: 1}
+    key1: {r: 0.625209, g: 0.49079525, b: 0.6349692, a: 1}
+    key2: {r: 0, g: 0, b: 0, a: 0}
+    key3: {r: 0, g: 0, b: 0, a: 0}
+    key4: {r: 0, g: 0, b: 0, a: 0}
+    key5: {r: 0, g: 0, b: 0, a: 0}
+    key6: {r: 0, g: 0, b: 0, a: 0}
+    key7: {r: 0, g: 0, b: 0, a: 0}
+    ctime0: 0
+    ctime1: 65535
+    ctime2: 0
+    ctime3: 0
+    ctime4: 0
+    ctime5: 0
+    ctime6: 0
+    ctime7: 0
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: -1
+    m_NumColorKeys: 2
+    m_NumAlphaKeys: 2
+  - serializedVersion: 2
+    key0: {r: 0.625209, g: 0.49079525, b: 0.6349692, a: 1}
+    key1: {r: 0.8270692, g: 0.76504993, b: 0.8315726, a: 1}
+    key2: {r: 0, g: 0, b: 0, a: 0}
+    key3: {r: 0, g: 0, b: 0, a: 0}
+    key4: {r: 0, g: 0, b: 0, a: 0}
+    key5: {r: 0, g: 0, b: 0, a: 0}
+    key6: {r: 0, g: 0, b: 0, a: 0}
+    key7: {r: 0, g: 0, b: 0, a: 0}
+    ctime0: 0
+    ctime1: 65535
+    ctime2: 0
+    ctime3: 0
+    ctime4: 0
+    ctime5: 0
+    ctime6: 0
+    ctime7: 0
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: -1
+    m_NumColorKeys: 2
+    m_NumAlphaKeys: 2
   emissiveRange: {x: 0, y: 1}
+  changeVersion: 419
+  baseShapeConfig:
+    commonOffset: {x: -1.3582389, y: -1.598598, z: -3.7228823}
+    radiusBias: -0.03428973
+    verticalSquash: 0.97095335
+  planetShapeConfig:
+    continent:
+      scale: 0.012152843
+      octaves: 5
+      amplitude: 24.023315
+      persistence: 0.5912161
+      lacunarity: 1.9119103
+      offset: {x: 115.1391, y: 170.71848, z: 198.5703}
+    mountain:
+      scale: 0.03096066
+      octaves: 3
+      amplitude: 7.479002
+      persistence: 0.5388107
+      lacunarity: 2.0642552
+      offset: {x: 162.6104, y: 209.43254, z: 245.07526}
+    detail:
+      scale: 0.10928219
+      octaves: 2
+      amplitude: 4.069432
+      persistence: 0.5456382
+      lacunarity: 2.0716736
+      offset: {x: 89.24129, y: 219.66304, z: 238.18263}
+    mask:
+      scale: 0.009183293
+      octaves: 2
+      amplitude: 0.75503296
+      persistence: 0.47958905
+      lacunarity: 2.1773047
+      offset: {x: 162.50008, y: 182.18123, z: 248.01077}
+    oceanDepthMultiplier: 4.748502
+    oceanFloorDepth: 1
+    oceanFloorSmoothing: 1.054593
+    mountainBlend: 1.8940141
+  planetShadingConfig:
+    largeNoise:
+      scale: 0.0063811187
+      octaves: 3
+      amplitude: 0.6696121
+      persistence: 0.62571675
+      lacunarity: 2.043601
+      offset: {x: 245.8924, y: 120.183685, z: 125.88592}
+    smallNoise:
+      scale: 0.030655114
+      octaves: 2
+      amplitude: 0.6433833
+      persistence: 0.6377031
+      lacunarity: 2.1742089
+      offset: {x: 134.18594, y: 123.732895, z: 45.073498}
+    detailNoise:
+      scale: 0.05603691
+      octaves: 3
+      amplitude: 0.8712449
+      persistence: 0.54333705
+      lacunarity: 2.1655698
+      offset: {x: 180.99776, y: 166.98743, z: 64.74036}
+    detailWarpNoise:
+      scale: 0.01742287
+      octaves: 3
+      amplitude: 0.8826825
+      persistence: 0.6294512
+      lacunarity: 2.0288718
+      offset: {x: 82.20793, y: 4.6139617, z: 98.373184}

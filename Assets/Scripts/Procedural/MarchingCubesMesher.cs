@@ -27,7 +27,6 @@ namespace Vortex.Procedural
         [SerializeField] private ComputeShader marchingCubesShader;
         [SerializeField] private bool autoAssignShaderInEditor = true;
         [SerializeField, Min(1)] private int maxTriangleCount = 800000;
-
         [SerializeField] private bool forceDoubleSidedIndices = true;
         [SerializeField] private bool weldVertices = true;
 
@@ -57,7 +56,8 @@ namespace Vortex.Procedural
             int gridResolution,
             float voxelSize,
             Vector3 gridOrigin,
-            float isoLevel)
+            float isoLevel,
+            RuntimeBodyData bodyData)
         {
             EnsureInitialized();
             if (marchingCubesShader == null)
@@ -128,24 +128,29 @@ namespace Vortex.Procedural
             BuildMeshStreams(
                 triangles,
                 triangleCount,
+                bodyData,
                 out Vector3[] vertices,
                 out Vector3[] normals,
-                out int[] indices);
-
-            int vertexCount = vertices.Length;
+                out int[] indices,
+                out Color[] colors,
+                out List<Vector4> uv2,
+                out List<Vector4> uv3);
 
             Mesh mesh = new Mesh
             {
                 name = "MarchingCubesMesh"
             };
 
-            if (vertexCount > 65535)
+            if (vertices.Length > 65535)
             {
                 mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
             }
 
             mesh.vertices = vertices;
             mesh.normals = normals;
+            mesh.colors = colors;
+            mesh.SetUVs(0, uv2);
+            mesh.SetUVs(1, uv3);
             mesh.SetTriangles(indices, 0, true);
             mesh.RecalculateBounds();
             return mesh;
@@ -154,37 +159,17 @@ namespace Vortex.Procedural
         private void BuildMeshStreams(
             GpuTriangle[] triangles,
             int triangleCount,
+            RuntimeBodyData bodyData,
             out Vector3[] vertices,
             out Vector3[] normals,
-            out int[] indices)
+            out int[] indices,
+            out Color[] colors,
+            out List<Vector4> uv2,
+            out List<Vector4> uv3)
         {
             if (!weldVertices)
             {
-                int vertexCount = triangleCount * 3;
-                vertices = new Vector3[vertexCount];
-                normals = new Vector3[vertexCount];
-                indices = forceDoubleSidedIndices ? new int[vertexCount * 2] : new int[vertexCount];
-
-                int v = 0;
-                for (int i = 0; i < triangleCount; i++)
-                {
-                    GpuTriangle tri = triangles[i];
-                    vertices[v] = tri.vertexA.position; normals[v] = tri.vertexA.normal; if (!forceDoubleSidedIndices) indices[v] = v; v++;
-                    vertices[v] = tri.vertexB.position; normals[v] = tri.vertexB.normal; if (!forceDoubleSidedIndices) indices[v] = v; v++;
-                    vertices[v] = tri.vertexC.position; normals[v] = tri.vertexC.normal; if (!forceDoubleSidedIndices) indices[v] = v; v++;
-                }
-
-                if (forceDoubleSidedIndices)
-                {
-                    int t = 0;
-                    for (int i = 0; i < vertexCount; i += 3)
-                    {
-                        int a = i; int b = i + 1; int c = i + 2;
-                        indices[t++] = a; indices[t++] = b; indices[t++] = c;
-                        indices[t++] = a; indices[t++] = c; indices[t++] = b;
-                    }
-                }
-
+                BuildNonWeldedMeshStreams(triangles, triangleCount, bodyData, out vertices, out normals, out indices, out colors, out uv2, out uv3);
                 return;
             }
 
@@ -221,6 +206,168 @@ namespace Vortex.Procedural
             {
                 indices = triIdx.ToArray();
             }
+
+            colors = new Color[vertices.Length];
+            uv2 = new List<Vector4>(vertices.Length);
+            uv3 = new List<Vector4>(vertices.Length);
+
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                BuildShadingPayload(vertices[i], normals[i], bodyData, out Color color, out Vector4 dataA, out Vector4 dataB);
+                colors[i] = color;
+                uv2.Add(dataA);
+                uv3.Add(dataB);
+            }
+        }
+
+        private void BuildNonWeldedMeshStreams(
+            GpuTriangle[] triangles,
+            int triangleCount,
+            RuntimeBodyData bodyData,
+            out Vector3[] vertices,
+            out Vector3[] normals,
+            out int[] indices,
+            out Color[] colors,
+            out List<Vector4> uv2,
+            out List<Vector4> uv3)
+        {
+            int vertexCount = triangleCount * 3;
+            vertices = new Vector3[vertexCount];
+            normals = new Vector3[vertexCount];
+            colors = new Color[vertexCount];
+            uv2 = new List<Vector4>(vertexCount);
+            uv3 = new List<Vector4>(vertexCount);
+            indices = forceDoubleSidedIndices ? new int[vertexCount * 2] : new int[vertexCount];
+
+            int v = 0;
+            for (int i = 0; i < triangleCount; i++)
+            {
+                WriteVertex(triangles[i].vertexA, bodyData, ref v, vertices, normals, colors, uv2, uv3, indices);
+                WriteVertex(triangles[i].vertexB, bodyData, ref v, vertices, normals, colors, uv2, uv3, indices);
+                WriteVertex(triangles[i].vertexC, bodyData, ref v, vertices, normals, colors, uv2, uv3, indices);
+            }
+
+            if (forceDoubleSidedIndices)
+            {
+                int t = 0;
+                for (int i = 0; i < vertexCount; i += 3)
+                {
+                    int a = i;
+                    int b = i + 1;
+                    int c = i + 2;
+                    indices[t++] = a; indices[t++] = b; indices[t++] = c;
+                    indices[t++] = a; indices[t++] = c; indices[t++] = b;
+                }
+            }
+        }
+
+        private void WriteVertex(
+            GpuVertex vertex,
+            RuntimeBodyData bodyData,
+            ref int index,
+            Vector3[] vertices,
+            Vector3[] normals,
+            Color[] colors,
+            List<Vector4> uv2,
+            List<Vector4> uv3,
+            int[] indices)
+        {
+            vertices[index] = vertex.position;
+            normals[index] = vertex.normal;
+            BuildShadingPayload(vertex.position, vertex.normal, bodyData, out Color color, out Vector4 dataA, out Vector4 dataB);
+            colors[index] = color;
+            uv2.Add(dataA);
+            uv3.Add(dataB);
+
+            if (!forceDoubleSidedIndices)
+            {
+                indices[index] = index;
+            }
+
+            index++;
+        }
+
+        private void BuildShadingPayload(Vector3 position, Vector3 normal, RuntimeBodyData bodyData, out Color color, out Vector4 dataA, out Vector4 dataB)
+        {
+            float radius = Mathf.Max(0.001f, bodyData.radius);
+            float normalizedHeight = Mathf.Clamp01(position.magnitude / radius);
+            float slope = 1f - Mathf.Clamp01(Vector3.Dot(normal.normalized, position.normalized));
+
+            if (bodyData.shadingModel == ShadingModel.MoonBiomes)
+            {
+                float biomeNoise = SampleLayer(bodyData.moonShadingConfig.biomeWarpNoise, position);
+                float detailNoise = SampleLayer(bodyData.moonShadingConfig.detailNoise, position);
+                float ejecta = SampleRadialNoise(position, 8f);
+                dataA = new Vector4(biomeNoise, ejecta, detailNoise, normalizedHeight);
+                dataB = new Vector4(slope, SampleLayer(bodyData.moonShapeConfig.ridgeA, position), 0f, 0f);
+                color = EvaluateMoonColor(dataA, slope);
+                return;
+            }
+
+            float mask = Mathf.Clamp01(SampleLayer(bodyData.planetShapeConfig.mask, position) * 0.5f + 0.5f);
+            float detail = SampleLayer(bodyData.planetShadingConfig.detailNoise, position);
+            float large = SampleLayer(bodyData.planetShadingConfig.largeNoise, position);
+            float small = SampleLayer(bodyData.planetShadingConfig.smallNoise, position);
+
+            dataA = new Vector4(normalizedHeight, slope, mask, detail);
+            dataB = new Vector4(large, small, SampleLayer(bodyData.planetShadingConfig.detailWarpNoise, position), 0f);
+            color = EvaluatePlanetColor(normalizedHeight, slope, mask, bodyData.biomeColorCurves);
+        }
+
+        private static Color EvaluatePlanetColor(float normalizedHeight, float slope, float mask, Gradient[] gradients)
+        {
+            if (gradients != null && gradients.Length > 0)
+            {
+                Gradient gradient = gradients[Mathf.Clamp(Mathf.RoundToInt(mask * (gradients.Length - 1)), 0, gradients.Length - 1)];
+                if (gradient != null)
+                {
+                    return gradient.Evaluate(Mathf.Clamp01(normalizedHeight * (1f - slope * 0.35f)));
+                }
+            }
+
+            return Color.Lerp(new Color(0.18f, 0.28f, 0.14f), new Color(0.72f, 0.74f, 0.68f), normalizedHeight);
+        }
+
+        private static Color EvaluateMoonColor(Vector4 dataA, float slope)
+        {
+            Color low = new Color(0.26f, 0.24f, 0.23f);
+            Color high = new Color(0.72f, 0.71f, 0.68f);
+            Color biome = Color.Lerp(low, high, Mathf.Clamp01(dataA.x * 0.5f + 0.5f));
+            return Color.Lerp(biome, Color.white, Mathf.Clamp01(slope * 0.35f + dataA.y * 0.1f));
+        }
+
+        private static float SampleLayer(NoiseLayer layer, Vector3 p)
+        {
+            if (layer.scale <= 0f || layer.amplitude <= 0f || layer.octaves <= 0)
+            {
+                return 0f;
+            }
+
+            float sum = 0f;
+            float frequency = Mathf.Max(0.0001f, layer.scale);
+            float amplitude = layer.amplitude;
+            Vector3 samplePos = p + layer.offset;
+
+            for (int i = 0; i < layer.octaves; i++)
+            {
+                sum += SampleValueNoise(samplePos * frequency) * amplitude;
+                frequency *= Mathf.Max(1f, layer.lacunarity);
+                amplitude *= Mathf.Clamp01(layer.persistence);
+            }
+
+            return sum;
+        }
+
+        private static float SampleValueNoise(Vector3 p)
+        {
+            float x = Mathf.Sin(Vector3.Dot(p, new Vector3(12.9898f, 78.233f, 37.719f))) * 43758.5453f;
+            return (x - Mathf.Floor(x)) * 2f - 1f;
+        }
+
+        private static float SampleRadialNoise(Vector3 p, float scale)
+        {
+            float v = Mathf.Sin((p.x + p.y * 0.7f + p.z * 1.13f) * scale);
+            return v * 0.5f + 0.5f;
         }
 
         private static void AddTriangle(
@@ -256,7 +403,6 @@ namespace Vortex.Procedural
             List<Vector3> normals)
         {
             Vector2Int key = gpuVertex.id;
-
             if (map.TryGetValue(key, out int index))
             {
                 normals[index] += gpuVertex.normal;
@@ -279,7 +425,6 @@ namespace Vortex.Procedural
             out int triangleCount)
         {
             triangleCount = 0;
-
             triangleBuffer.SetCounterValue(0);
 
             marchingCubesShader.SetInt("_GridResolution", gridResolution);
@@ -336,7 +481,6 @@ namespace Vortex.Procedural
         private void EnsureInitialized()
         {
             TryResolveShader();
-
             if (marchingCubesShader == null)
             {
                 return;

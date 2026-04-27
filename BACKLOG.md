@@ -39,6 +39,10 @@
 
   **Yöntem:** `CelestialBodyTemplate` adında soyut bir `ScriptableObject` base class yaz. Alt sınıflar: `PlanetTemplate`, `MoonTemplate`, `StarTemplate`, `NeutronStarTemplate`, `BlackHoleTemplate`, `SupergiantTemplate`. Her şablonda alanlar: `bodyType` (enum), `massRange` (Vector2), `radiusRange` (Vector2), `noiseLayerConfig` (iç içe struct — `PRD.md` 3.2'deki Kıta/Dağ/Detay parametreleri), `biomeColorCurves` (Gradient array), `anomalyChance` (float). `[CreateAssetMenu]` attribute ile her tip için `.asset` dosyaları oluşturulabilmeli.
 
+  **Referans Notu (Sebastian / Solar-System):** `C:\Users\dogan\Desktop\repolar\Solar-System\Assets\Scripts\Celestial\Shape\CelestialBodyShape.cs`, `EarthShape.cs` ve `MoonShape.cs` aynı temel abstraction altında ama ayrı noise parametre setleriyle ilerliyor. Bizdeki mevcut tek `NoiseLayerConfig` hem `PlanetTemplate` hem `MoonTemplate` tarafında ortak kullanıldığı için backlog seviyesinde ayrışma kararı gerekli: planet ve moon için farklı shape/noise veri profilleri tanımlanmalı.
+
+  **Teknik Tasarım Kararı:** Ortak `NoiseLayerConfig` korunacaksa bile yalnızca shared primitive katman için kullanılmalı; body-specific shape verisi ayrı payload struct'lara taşınmalı. Önerilen yapı: `BaseShapeConfig` (seed, radius bias, common offsets) + `PlanetShapeConfig` (continent, mountain, mask, ocean-floor, shore blend) + `MoonShapeConfig` (crater, shapeNoise, ridgeA, ridgeB, ejecta hints). `CelestialBodyTemplate` yalnızca ortak üst başlıkları tutmalı; `PlanetTemplate` ve `MoonTemplate` kendi specialized config alanlarını expose etmeli.
+
   **Çıktı/Beklenti:** Unity Editor'da sağ tıkla → Create → Vortex → CelestialBody → [tip] menüsü çalışmalı. En az bir örnek `PlanetTemplate` ve bir `BlackHoleTemplate` `.asset` dosyası Inspector'dan doldurulabilmeli.
 
   **Kodlanacaklar:**
@@ -56,6 +60,12 @@
     - [x] `[CreateAssetMenu]` attribute'larını ekle
     - [x] Örnek `.asset` dosyalarını oluştur ve Inspector'dan doldur (`SamplePlanetTemplate.asset`, `SampleBlackHoleTemplate.asset`, `SampleStarTemplate.asset`)
     - [x] Derleme hatası yokluğunu doğrula (21 EditMode testi geçiyor)
+    - [ ] `PlanetTemplate` ve `MoonTemplate` için ayrı noise veri modelleri tanımla; aynı `NoiseLayerConfig` ile iki cisim türünü sürdürme
+    - [ ] `RuntimeBodyData` içinde body-class-specific generation payload tasarla (planet/mask/ocean blend ile moon/crater/ridge ayrıştır)
+    - [ ] Referans inceleme notlarını uygula: `Solar-System/Assets/Scripts/Celestial/Shape/EarthShape.cs` ve `MoonShape.cs`
+    - [ ] `BaseShapeConfig`, `PlanetShapeConfig`, `MoonShapeConfig` veri sözleşmelerini yaz
+    - [ ] `RuntimeBodyData` içine tagged-union benzeri seçim alanı ekle (`shapeModel`, `shadingModel`)
+    - [ ] Template → runtime bake aşamasında ortak alanlar ile body-specific alanları ayrı paketle
 
 ---
 
@@ -225,6 +235,10 @@
 
   **Yöntem:** `VoxelDataGenerator.compute` HLSL Compute Shader yaz. Dispatch grid: 3D dispatch, her thread bir voxel hücresine karşılık gelir. Temel SDF: `float sdf = length(p) - radius`. Ardından `PRD.md` 3.2'deki 3 noise katmanı ekle: Kıta katmanı (düşük frekans FBM, büyük ölçek yerleşim), Dağ katmanı (orta frekans ridge noise, yüksek tepeler), Detay katmanı (yüksek frekans, ince yüzey detayı). Katman ağırlıkları `RuntimeBodyData`'dan gelen parametrelerle belirlenmeli. Sonuç `RWStructuredBuffer<float>` içine yazılır.
 
+  **Referans Notu (Sebastian / Solar-System):** `C:\Users\dogan\Desktop\repolar\Solar-System\Assets\Scripts\Celestial\Shaders\Compute\Height\EarthHeight.compute` ile `MoonHeight.compute` aynı height pipeline içinde bile farklı noise kompozisyonları kullanıyor. Earth tarafı continent + mountain mask mantığı izlerken moon tarafı crater depth + shape noise + iki ridge katı kullanıyor. Bizim `Assets/Shaders/VoxelDataGenerator.compute` şu an tek FBM toplamı yaptığı için planet ve moon için ayrı kernel ya da body-class branch tasarımı backlog'a alınmalı.
+
+  **Teknik Tasarım Kararı:** `VoxelDataGenerator.compute` içinde tek monolitik formül yerine iki katmanlı yapı kurulmalı: (1) `EvaluateBaseBodySdf(worldPos, body)` küre/ellipsoid ve ortak primitive alanı üretir; (2) `EvaluateShapeDisplacement(worldPos, body)` body-class'e göre `PlanetDisplacement` veya `MoonDisplacement` çağırır. Compute tarafında branch maliyeti yüksek görünürse `CSPlanetVoxel` ve `CSMoonVoxel` şeklinde ayrı kernel açılmalı; C# tarafında `VoxelDataManager` kernel seçimini `RuntimeBodyData.shapeModel` ile yapmalı.
+
   **Çıktı/Beklenti:** Dispatch sonrası buffer okunduğunda merkezde negatif, dışarıda pozitif SDF değerleri bulunmalı. Noise katmanları gezegen çapının %10-40'ı oranında yüzey dalgalanması üretmeli. RTX 3050'de 64³ grid için <5ms olmalı.
 
   **Kodlanacaklar:**
@@ -241,6 +255,12 @@
     - [x] `VoxelDataManager.cs` ile C# tarafında dispatch yönetimini yaz
     - [x] Buffer readback ile değerleri doğrula (negatif/pozitif dağılım)
     - [ ] Performans: 64³ grid < 5ms hedef
+    - [ ] `PlanetVoxel` ve `MoonVoxel` için ayrı noise recipe tanımla; moon tarafına crater/ridge zinciri ekle
+    - [ ] Tek `noiseDisplacement = continent + mountain + detail` modelini body türüne göre parçala
+    - [ ] Referans inceleme notlarını uygula: `Solar-System/Assets/Scripts/Celestial/Shaders/Compute/Height/EarthHeight.compute` ve `MoonHeight.compute`
+    - [ ] `EvaluateBaseBodySdf`, `PlanetDisplacement`, `MoonDisplacement` fonksiyon imzalarını tasarla
+    - [ ] `VoxelDataManager` içinde kernel/param set seçim katmanı ekle
+    - [ ] Moon hattı için crater buffer ve ridge parametre push sırasını belirle
 
 ---
 
@@ -249,6 +269,10 @@
   **Amaç:** `VoxelDataGenerator`'dan gelen SDF verisini gerçek zamanlı üçgen mesh'e dönüştürmek. Gezegen yüzeyindeki tüm değişimler (yıkım, hamurlaşma) bu shader'ın yeniden çalıştırılmasıyla güncellenir. CPU Marching Cubes yeterince hızlı değildir; GPU paralel implementasyonu zorunludur.
 
   **Yöntem:** `MarchingCubesMesher.compute` HLSL Compute Shader yaz. Standart Marching Cubes lookup tablosunu HLSL sabit dizisi olarak tanımla (256 giriş, her birinde üçgen vertex offsetleri). Her thread bir voxel hücresi için tri sayısını belirler ve `AppendStructuredBuffer<Triangle>` içine yazar. C# tarafında `Graphics.DrawMeshNow` veya `Mesh.SetVertices` ile sonucu render buffer'a aktar. Vertex Color ataması: `PRD.md` 3.3'teki biome eğrilerini normal yönü ve SDF derinliğine göre HLSL içinde hesapla (UV yok, tamamen vertex color workflow).
+
+  **Referans Notu (Sebastian / Solar-System):** Sebastian pipeline'ında shading verisi mesh yüksekliğinden ayrılıyor; `CelestialBodyShading.GenerateShadingData()` vertex başına ek veri üretiyor ve `EarthShading.compute` / `MoonShading.compute` ile farklı kanallar dolduruluyor. Bizde Marching Cubes aşamasında yalnızca vertex color hesaplamak yerine, ileri aşama için ikinci bir shading-data buffer/uv stream saklama ihtiyacı backlog seviyesinde not edilmeli.
+
+  **Teknik Tasarım Kararı:** Mesh üretimi ile shading üretimi ayrılmalı. Marching Cubes yalnızca geometri + temel normal üretmeli; shading datası ikinci compute geçişinde vertex/world sample tabanlı hesaplanmalı. Önerilen taşıma modeli: `uv2/uv3` içine `float4 shadingDataA` ve `float4 shadingDataB`, vertex color içine yalnızca debug/legacy biome fallback. Böylece HDRP yüzey shader'ı planet ve moon için aynı mesh formatını okuyup body-specific feature switch'leri kullanabilir.
 
   **Çıktı/Beklenti:** Sahnede SDF küre + noise kombinasyonundan türeyen, dağlık yüzeyli gezegen mesh'i görünmeli. Vertex Color ile biome renk geçişleri gözlemlenmeli. Mesh normalleri doğru hesaplanmış olmalı (SDF gradyanından).
 
@@ -267,6 +291,11 @@
     - [x] C# tarafında mesh asset'e upload pipeline yaz
     - [ ] Sahne testi: gezegen görünür, renk geçişleri gözlemlenir
     - [ ] Wireframe modunda üçgen sayısını ve normal yönlerini doğrula
+    - [ ] Mesh üzerinde vertex color dışında ek shading verisi taşıma opsiyonunu tasarla
+    - [ ] Referans inceleme notlarını uygula: `Solar-System/Assets/Scripts/Celestial/Shading/CelestialBodyShading.cs`, `EarthShading.compute`, `MoonShading.compute`
+    - [ ] `shadingDataA/shadingDataB` semantic'lerini tanımla (planet için slope/height/mask/detail, moon için ejectaUV/biome/detail)
+    - [ ] Mesh upload aşamasında `uv2` ve `uv3` stream'lerini doldur
+    - [ ] Debug fallback olarak vertex color yolunu koru, HDRP shading hazır olunca ikincil role düşür
 
 ---
 
@@ -275,6 +304,10 @@
   **Amaç:** `VoxelDataGenerator` ve `MarchingCubesMesher` pipeline'larını tek bir MonoBehaviour çatısı altında birleştirerek gezegeni sahnede yaşayan bir obje haline getirmek. Bu bileşen, FAZ 3'teki yıkım ve hamurlaşma operasyonlarının da uygulama noktasıdır.
 
   **Yöntem:** `DynamicPlanet : MonoBehaviour` yaz. Initialization: `RuntimeBodyData`'yı okur, Compute Buffer'ları tahsis eder, ilk dispatch'i yapar. `RegenerateMesh()` public metod: tüm pipeline'ı yeniden çalıştırır (yıkım sonrası çağrılır). Spawn/Init akışında `GravityWell.ApplyProceduralBody(runtimeData.mass, runtimeData.radius)` çağrısı zorunludur. Marching Cubes çıktısı her yenilendiğinde `MeshFilter` ile birlikte `MeshCollider.sharedMesh` de güncellenerek dağ/tepe/çukur geometrisinde gerçek temas sağlanır. LOD: 3 çözünürlük seviyesi (64³ yakın, 32³ orta, 16³ uzak). `RelativisticBody` bileşeni ile entegre — gezegen de bir `RelativisticBody`'dir. Bellek: her `DynamicPlanet` kendi buffer'larını yönetir, `OnDestroy`'da release eder.
+
+  **Referans Notu (Sebastian / Solar-System):** `C:\Users\dogan\Desktop\repolar\Solar-System\Assets\Scripts\Celestial\CelestialBodyGenerator.cs` shape update ile shading update'i birbirinden ayırıyor; shape değişirse mesh yeniden kuruluyor, yalnız shading noise değişirse tüm mesh tekrar üretilmiyor. Bizde `DynamicPlanet` ileride planet/moon strategy seçimi ve shape-vs-shading invalidation ayrımı kazanacak şekilde genişletilmeli.
+
+  **Teknik Tasarım Kararı:** `DynamicPlanet` içinde üç ayrı invalidation bayrağı tutulmalı: `shapeDirty`, `shadingDirty`, `composeDirty`. `shapeDirty` voxel + mesh rebuild tetikler; `shadingDirty` yalnız shading data recompute ve material property push yapar; `composeDirty` merge/damage sonrası voxel + mesh rebuild tetikler. Ayrıca `DynamicPlanet` tek başına tüm politikayı taşımamalı; `IShapeGeneratorStrategy`, `IShadingGeneratorStrategy`, `ISdfComposeProvider` benzeri katmanlarla genişlemeli.
 
   **Çıktı/Beklenti:** Sahnede `DynamicPlanet` prefab sürüklenerek konumlandırılabilmeli. Kamera yaklaştıkça LOD geçişi görünmeli. `RegenerateMesh()` çağrıldığında mesh anlık güncellenmeli.
 
@@ -295,6 +328,12 @@
     - [x] DynamicPlanet için `SolidSdf` zorlaması ve non-SDF template uyarı logu ekle
     - [x] SolidSdf template'lerde boş noise config için güvenli varsayılan noise otomatik doldurma ekle
     - [ ] CelestialBody template preset setleri oluştur (`arcade`, `realistic`, `extreme`) ve varsayılan sample asset'lere uygula
+    - [ ] `bodyClass` bazlı shape strategy seçimi ekle (planet path != moon path)
+    - [ ] Shape invalidation ile shading invalidation'ı ayır; sadece shading değişince full mesh regenerate etme
+    - [ ] Referans inceleme notlarını uygula: `Solar-System/Assets/Scripts/Celestial/CelestialBodyGenerator.cs`
+    - [ ] `shapeDirty`, `shadingDirty`, `composeDirty` yaşam döngüsünü tasarla
+    - [ ] Strategy katmanları için interface sözleşmelerini yaz
+    - [ ] `DynamicPlanet` içinde merge/damage sırasında compose context cache'le
     - [ ] `RelativisticBody` bileşeniyle ortak kullanım testini yap
     - [ ] Prefab oluştur
     - [ ] LOD geçiş testi (kamera ileri/geri)
@@ -340,6 +379,8 @@
 
   **Yöntem:** Yeni test sahnesi: `Scenes/Tests/CollisionTest.unity`. İki `DynamicPlanet` prefab, aralarındaki mesafe $\approx 5 \times (r_1 + r_2)$. Her birine `GravityWell` ve `RelativisticBody` ekle; başlangıç hızlarını geodezik integratör çarpışma rotasına sokacak şekilde hesapla (kesiştirici yörünge). Çarpışma anının kontrolü için `TimeScale` slider'ı (Editor UI, Debug only) ekle. Farklı kütle oranları (1:1, 3:1, 10:1) için ayrı prefab varyantı oluştur.
 
+  **Referans Notu (Sebastian / Ray-Marching):** `https://www.youtube.com/watch?v=Cp5WWtMoeKg&t=4s` videosundaki blend-strength kontrollü köprü görünümü, bu sahnede aradığımız görsel kabul referansıdır. Ancak bizim test sahnesinde kabul kriteri yalnızca ekran-space benzerliği değil; çarpışma öncesi köprü, çarpışma anı yıkım ve sonrasında collider/fizik sürekliliği birlikte doğrulanmalıdır.
+
   **Çıktı/Beklenti:** İki gezegen sahnede oynandığında birbirlerine doğru hareket etmeli ve yaklaşık 10-30 saniye içinde temas mesafesine gelmeli. Zaman ölçeği değiştirilerek çarpışma yavaşlatılabilmeli.
 
   **Kodlanacaklar:**
@@ -364,6 +405,10 @@
 
   **Yöntem:** `VoxelDataGenerator.compute` içine `Smin(float a, float b, float k)` fonksiyonunu ekle: `float h = max(k - abs(a-b), 0.0) / k; return min(a, b) - h*h*k*0.25;`. `DynamicPlanet.RegenerateMesh()` imzasını `RegenerateMesh(DynamicPlanet other = null, float blendFactor = 0)` şeklinde genişlet. `other != null` ise dispatch içinde iki SDF'yi `Smin` ile birleştir. `blendFactor` mesafeye göre 0→1 olur. C# tarafında iki gezegen arasındaki mesafeyi her frame hesapla; eşik altındaysa `RegenerateMesh(other)` çağır.
 
+  **Referans Notu (Sebastian / Ray-Marching):** `C:\Users\dogan\Desktop\repolar\Ray-Marching\Assets\Scripts\SDF\Raymarching.compute` içindeki `Blend(...)` ve `Combine(...)` akışı, videodaki "gooey bridge" görünümünün temel matematiğini veriyor. Ayrıca `Shape.cs` içindeki `Operation { None, Blend, Cut, Mask }` ayrımı backlog tasarımımız için doğrudan değerli. Ancak oradaki sistem analytic SDF primitiflerini render-time raymarch ediyor; bizim tarafta aynı fikir `Assets/Shaders/VoxelDataGenerator.compute` içinde voxel örnekleme + `MarchingCubesMesher` sonrası gerçek mesh/collider güncellemesi olarak uygulanacak.
+
+  **Teknik Tasarım Kararı:** Merge/damage hattı için merkezi bir compose katmanı tanımlanmalı. Öneri: `SdfComposeOperation` enum (`Union`, `Blend`, `Subtract`, `Mask`), `SdfComposeCommand` struct (`operation`, `otherBodyId`, `transform`, `radius`, `strength`, `falloff`, `flags`) ve `SdfComposeContext` buffer'ı. `VoxelDataGenerator.compute` her voxel için önce ana body SDF'yi hesaplar, sonra aktif compose komutlarını sırayla uygular. Böylece bugün `Smin`, yarın krater, fragment cut ve tidal carve aynı borudan akar.
+
   **Çıktı/Beklenti:** İki gezegen temas öncesi ($\approx r_1 + r_2$ mesafesinde) aralarında görünür bir "köprü" şekli oluşmalı. Temas anında keskin değil yumuşak bir birleşim görünmeli. `k` parametresi Inspector'dan ayarlanabilmeli.
 
   **Kodlanacaklar:**
@@ -379,6 +424,12 @@
     - [ ] `RegenerateMesh()` imzasını genişlet
     - [ ] `PlanetMergeController` mesafe takibini yaz
     - [ ] `blendFactor` → `k` parametresi mapping'ini ayarla
+    - [ ] `Blend`/`Combine` benzeri tek birleşim kapısı tasarla; ileride `Union`, `Blend`, `Cut`, `Mask` operasyonlarına genişleyebilsin
+    - [ ] Görsel hedef kalibrasyonu için Sebastian video referansını kullan: `https://www.youtube.com/watch?v=Cp5WWtMoeKg&t=4s` (özellikle 03:28 civarı köprü şekli)
+    - [ ] Raymarching POC ile farkı koru: görsel blend tek başına yeterli değil, mesh + collider gerçekten yeniden oluşmalı
+    - [ ] `SdfComposeOperation`, `SdfComposeCommand`, `SdfComposeContext` veri yapılarını tanımla
+    - [ ] Tek-öteki-body yerine N compose command akışına uygun buffer düzeni kur
+    - [ ] `blendFactor` mapping'ini mesafe, toplam yarıçap ve relatif hızdan türet
     - [ ] Sahne testi: köprü şekli ve yumuşak birleşim gözlemle
     - [ ] `k` değerleri aralığı (0.1–2.0) ile görsel kalibrasyon
 
@@ -389,6 +440,10 @@
   **Amaç:** Enerji eşiği aşıldığında gezegen yüzeyinden büyük hacimler kopararak gerçek zamanlı yıkım efekti üretmek. Bu, oyunun savaş mekaniğinin temelidir; yüzeysel görsel hasar değil, SDF üzerinde gerçek hacimsel çıkarma yapılmalıdır.
 
   **Yöntem:** `VoxelDataGenerator.compute` içine `CSGSubtract(float sceneSDF, float cutterSDF)` ekle: `max(sceneSDF, -cutterSDF)`. Kesen hacim: küre veya Capsule SDF (çarpışma noktasında, `CollisionPoint` + `cutRadius` parametresi). `DynamicPlanet`'e `ApplyDamage(Vector3 worldPos, float radius, float depth)` public metod ekle: buffer içindeki cut parametrelerini günceller, `RegenerateMesh()` çağırır. Çarpışma anı: `CollisionTestController` eşiği geçtiğinde her iki gezegene `ApplyDamage` çağırır.
+
+  **Referans Notu (Sebastian / Ray-Marching):** `C:\Users\dogan\Desktop\repolar\Ray-Marching\Assets\Scripts\SDF\Shape.cs` içindeki `Cut` ve `Mask` operasyonları ile `Raymarching.compute` içindeki `Combine(...)` yapısı, bizim yıkım backlog'u için doğru kavramsal ayrımı doğruluyor. Fakat Sebastian tarafında bu operasyon yalnızca görüntülenen yüzeyi kesiyor; bizde `CSGSubtract` sonucu voxel hacme yazılmalı, sonra mesh/collider kalıcı olarak yeniden üretilmeli.
+
+  **Teknik Tasarım Kararı:** `ApplyDamage` tek bir anlık kesim çağrısı yerine compose command üreten bir API olmalı. Öneri: hasar olayları `DamageStamp` listesine kaydedilsin; stamp türleri `Sphere`, `Capsule`, `DirectionalGouge`, `FragmentCut`. `DynamicPlanet` her rebuild öncesi aktif stamp'leri `SdfComposeCommand` buffer'ına çevirsin. Böylece hasar birikimli, tekrar üretilebilir ve save/load uyumlu olur.
 
   **Çıktı/Beklenti:** `ApplyDamage` çağrıldığında gezegen yüzeyinde küresel bir krater oluşmalı. Krater kenarları `Smin` ile yumuşatılabilir. Çoklu `ApplyDamage` çağrıları birikimlı hasar oluşturmalı.
 
@@ -404,6 +459,11 @@
     - [ ] Cut parametresi buffer'ını yaz
     - [ ] `ApplyDamage()` metodunu `DynamicPlanet.cs`'e ekle
     - [ ] `CollisionDamageController` eşik tetiklemesini yaz
+    - [ ] `Cut` ve `Mask` operasyonlarını enum/operasyon katmanı olarak ayrı tut; tek seferlik if-blok çözümüyle sınırlanma
+    - [ ] Sebastian referansındaki gibi operation-merkezli compose hattı kur, ama sonucu gerçek volumetric veri üzerinde biriktir
+    - [ ] `DamageStamp` veri modelini tanımla ve persistent liste olarak sakla
+    - [ ] `ApplyDamage`yi stamp enqueue + rebuild tetikleyici olarak tasarla
+    - [ ] Save/load için stamp replay akışını planla
     - [ ] Test: tek krater oluşumu
     - [ ] Test: çoklu birikmeli krater
 
@@ -561,6 +621,8 @@
 
   **Yöntem:** Test senaryoları (manuel, test sahnesi içinde): (1) Yörüngedeki obje dondurulunca ekranda sabit kalır; (2) İvmelenen obje (gemiden bağımsız) dondurulunca anlık durmur; (3) Dondurulmuş iki cismin `Smin` birleşimi hesaplanmaz (mesh güncellenmez); (4) Zaman silahı menzil dışındaki objeyi etkilemez; (5) 5 obje aynı anda dondurulup serbest bırakılınca hepsi ayrı yörünge devam eder. `OrbitVisualizer` tüm senaryolarda aktif tutularak yörünge izi ile doğrulama yapılır.
 
+  **Referans Notu (Sebastian / Ray-Marching):** Sebastian tarafındaki blend işlemi render-time ve stateless olduğu için pause/freeze etkisi doğal olarak problem üretmez. Bizde ise aynı `Smin` fikri gerçek mesh yenilemeye bağlandığı için, donmuş cisimlerde merge/damage evaluation'ın durdurulması ayrıca doğrulanmalıdır.
+
   **Çıktı/Beklenti:** 5 senaryo da geçmeli. Hiçbir senaryoda NaN, Infinity veya FPS ani düşüşü olmamalı. Bu test FAZ 5 giriş kapısıdır.
 
   **Kodlanacaklar:**
@@ -642,6 +704,10 @@
 
   **Yöntem:** HDRP Global Volume ayarları: Bloom intensity 0.3-0.6 arası, `Lens Distortion` hafif, `Color Adjustments` ile satürasyon -10 (hafif desatürasyon), `Tonemapping` ACES. `DynamicPlanet`'in HDRP Lit Shader'ı için custom Surface Shader yaz: vertex color → Albedo, SDF normali → smooth+sharp hibrit (`lerp(flatNormal, smoothNormal, 0.6)`). Yıldızlar ve arka plan için `Starfield` Fullscreen Custom Pass. Directional Light: `ART_BIBLE.md` 3'te belirtilen yumuşak açılı, düşük sertlik (`Shadow Softness > 0.5`).
 
+  **Referans Notu (Sebastian / Solar-System):** Shading sistemini uyarlarken `C:\Users\dogan\Desktop\repolar\Solar-System\Assets\Scripts\Celestial\Shading\CelestialBodyShading.cs`, `EarthShading.cs`, `MoonShading.cs`, `Assets\Scripts\Celestial\Shaders\Surface\Earth.shader` ve `MoonA.shader` / `MoonB.shader` temel referanslar. Özellikle moon tarafındaki biome noktası, ejecta ray ve detail warp mantığı; planet tarafındaki katmanlı renk bandı ve terrain property set akışı bizim HDRP surface/shadergraph işine doğrudan taşınabilir.
+
+  **Teknik Tasarım Kararı:** Tek bir dev shader yerine ortak çekirdek + body-specific feature set yaklaşımı benimsenmeli. Öneri: `PlanetSurfaceCommon.hlsl` ortak height/slope/lighting yardımcılarını içerir; `PlanetSurface.shadergraph` bu fonksiyonları Custom Function ile çağırır; material keyword veya runtime integer ile `Planet` ve `Moon` shading path seçilir. Planet path height/slope/mask üzerinden renk bandı üretir; moon path biome-cell/ejecta/detail ve normal-map karışımı uygular.
+
   **Çıktı/Beklenti:** Sahneler referans görsel (diorama estetik) ile karşılaştırıldığında tutarlı hissettirmeli. Art Director onayı gereklidir (kullanıcı onayı). `ART_BIBLE.md` 12 kontrolü yapılacak.
 
   **Kodlanacaklar:**
@@ -655,6 +721,11 @@
     - [ ] HDRP Volume parametrelerini kalibre et
     - [ ] `PlanetSurface.shadergraph` hibrit shading yaz
     - [ ] Vertex color → Albedo pipeline'ı bağla
+    - [ ] Sebastian shading sisteminden alınacak parçaları seç: planet renk bantları, moon biome/ejecta mantığı, terrain property set akışı
+    - [ ] Planet ve moon için tek shader yerine ortak core + body-specific feature set kararı ver
+    - [ ] `PlanetSurfaceCommon.hlsl` ortak fonksiyon katmanını planla
+    - [ ] Planet ve moon shading input sözleşmesini tanımla (`uv2/uv3`, globals, textures)
+    - [ ] ShaderGraph + Custom Function hibritinin hangi parçaları taşıyacağını netleştir
     - [ ] `Starfield` Fullscreen Pass yaz
     - [ ] Directional Light ayarlarını düzenle
     - [ ] Referans görsel ile karşılaştırma (kullanıcı onayı)
