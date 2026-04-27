@@ -8,6 +8,7 @@ namespace Vortex.Procedural
         private void OnValidate()
         {
             bodyClass = BodyClass.BlackHole;
+            NotifyTemplateChanged();
         }
 
         private void Reset()
@@ -18,6 +19,7 @@ namespace Vortex.Procedural
             hasEventHorizon = true;
             supportsLanding = false;
             radiationHazard = true;
+            NotifyTemplateChanged();
         }
     }
 }

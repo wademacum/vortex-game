@@ -1,0 +1,152 @@
+#pragma kernel CSMain
+#include "MarchTables.compute"
+
+struct VertexData
+{
+    float3 position;
+    float3 normal;
+    int2 id;
+};
+
+struct Triangle
+{
+    VertexData vertexA;
+    VertexData vertexB;
+    VertexData vertexC;
+};
+
+StructuredBuffer<float> _SdfInput;
+AppendStructuredBuffer<Triangle> _Triangles;
+
+int _GridResolution;
+float _VoxelSize;
+float3 _GridOrigin;
+float _IsoLevel;
+
+uint Flatten(int3 p)
+{
+    int r = _GridResolution;
+    return (uint)(p.x + r * (p.y + r * p.z));
+}
+
+float SampleSdf(int3 p)
+{
+    int r = _GridResolution;
+    p = clamp(p, int3(0, 0, 0), int3(r - 1, r - 1, r - 1));
+    return _SdfInput[Flatten(p)];
+}
+
+float3 CoordToWorld(int3 p)
+{
+    return _GridOrigin + (float3)p * _VoxelSize;
+}
+
+int IndexFromCoord(int3 p)
+{
+    p = clamp(p, int3(0, 0, 0), int3(_GridResolution - 1, _GridResolution - 1, _GridResolution - 1));
+    return (int)Flatten(p);
+}
+
+float3 CalculateNormal(int3 coord)
+{
+    int3 offsetX = int3(1, 0, 0);
+    int3 offsetY = int3(0, 1, 0);
+    int3 offsetZ = int3(0, 0, 1);
+
+    float dx = SampleSdf(coord + offsetX) - SampleSdf(coord - offsetX);
+    float dy = SampleSdf(coord + offsetY) - SampleSdf(coord - offsetY);
+    float dz = SampleSdf(coord + offsetZ) - SampleSdf(coord - offsetZ);
+
+    float3 n = float3(dx, dy, dz);
+    float lenSq = dot(n, n);
+    return (lenSq > 1e-12) ? normalize(n) : float3(0, 1, 0);
+}
+
+VertexData CreateVertex(int3 coordA, int3 coordB)
+{
+    float3 posA = CoordToWorld(coordA);
+    float3 posB = CoordToWorld(coordB);
+    float densityA = SampleSdf(coordA);
+    float densityB = SampleSdf(coordB);
+
+    float denom = densityB - densityA;
+    float t = (abs(denom) > 1e-8) ? (_IsoLevel - densityA) / denom : 0.5;
+    t = saturate(t);
+
+    float3 position = posA + t * (posB - posA);
+
+    float3 normalA = CalculateNormal(coordA);
+    float3 normalB = CalculateNormal(coordB);
+    float3 normal = normalize(normalA + t * (normalB - normalA));
+
+    int indexA = IndexFromCoord(coordA);
+    int indexB = IndexFromCoord(coordB);
+
+    VertexData v;
+    v.position = position;
+    v.normal = normal;
+    v.id = int2(min(indexA, indexB), max(indexA, indexB));
+    return v;
+}
+
+[numthreads(4, 4, 4)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    int numCubesPerAxis = _GridResolution - 1;
+    if (id.x >= (uint)numCubesPerAxis || id.y >= (uint)numCubesPerAxis || id.z >= (uint)numCubesPerAxis)
+    {
+        return;
+    }
+
+    int3 coord = int3(id.x, id.y, id.z);
+
+    int3 cornerCoords[8];
+    cornerCoords[0] = coord + int3(0, 0, 0);
+    cornerCoords[1] = coord + int3(1, 0, 0);
+    cornerCoords[2] = coord + int3(1, 0, 1);
+    cornerCoords[3] = coord + int3(0, 0, 1);
+    cornerCoords[4] = coord + int3(0, 1, 0);
+    cornerCoords[5] = coord + int3(1, 1, 0);
+    cornerCoords[6] = coord + int3(1, 1, 1);
+    cornerCoords[7] = coord + int3(0, 1, 1);
+
+    int cubeConfiguration = 0;
+    for (int i = 0; i < 8; i++)
+    {
+        if (SampleSdf(cornerCoords[i]) < _IsoLevel)
+        {
+            cubeConfiguration |= (1 << i);
+        }
+    }
+
+    int edgeIndices[16] = triangulation[cubeConfiguration];
+    for (int i = 0; i < 16; i += 3)
+    {
+        if (edgeIndices[i] == -1)
+        {
+            break;
+        }
+
+        int edgeIndexA = edgeIndices[i];
+        int a0 = cornerIndexAFromEdge[edgeIndexA];
+        int a1 = cornerIndexBFromEdge[edgeIndexA];
+
+        int edgeIndexB = edgeIndices[i + 1];
+        int b0 = cornerIndexAFromEdge[edgeIndexB];
+        int b1 = cornerIndexBFromEdge[edgeIndexB];
+
+        int edgeIndexC = edgeIndices[i + 2];
+        int c0 = cornerIndexAFromEdge[edgeIndexC];
+        int c1 = cornerIndexBFromEdge[edgeIndexC];
+
+        VertexData vertexA = CreateVertex(cornerCoords[a0], cornerCoords[a1]);
+        VertexData vertexB = CreateVertex(cornerCoords[b0], cornerCoords[b1]);
+        VertexData vertexC = CreateVertex(cornerCoords[c0], cornerCoords[c1]);
+
+        Triangle tri;
+        tri.vertexA = vertexC;
+        tri.vertexB = vertexB;
+        tri.vertexC = vertexA;
+        _Triangles.Append(tri);
+    }
+}

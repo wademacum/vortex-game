@@ -8,6 +8,9 @@ namespace Vortex.Procedural
         private void OnValidate()
         {
             bodyClass = BodyClass.Planet;
+            generationMode |= GenerationMode.SolidSdf;
+            EnsureSolidSdfNoiseDefaults();
+            NotifyTemplateChanged();
         }
 
         private void Reset()
@@ -16,6 +19,8 @@ namespace Vortex.Procedural
             generationMode = GenerationMode.SolidSdf;
             hasSurface = true;
             supportsLanding = true;
+            EnsureSolidSdfNoiseDefaults();
+            NotifyTemplateChanged();
         }
     }
 }

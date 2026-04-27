@@ -8,6 +8,9 @@ namespace Vortex.Procedural
         private void OnValidate()
         {
             bodyClass = BodyClass.AsteroidCluster;
+            generationMode |= GenerationMode.SolidSdf;
+            EnsureSolidSdfNoiseDefaults();
+            NotifyTemplateChanged();
         }
 
         private void Reset()
@@ -16,6 +19,8 @@ namespace Vortex.Procedural
             generationMode = GenerationMode.SolidSdf;
             hasSurface = true;
             supportsLanding = false;
+            EnsureSolidSdfNoiseDefaults();
+            NotifyTemplateChanged();
         }
     }
 }

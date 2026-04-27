@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 464da99ad4b20be47a3f1406f7023801, type: 3}
+  m_Name: SampleNeutronStarTemplate
+  m_EditorClassIdentifier: Assembly-CSharp::Vortex.Procedural.NeutronStarTemplate
+  bodyClass: 3
+  spawnWeight: 0.12
+  massRange: {x: 300000, y: 2000000}
+  radiusRange: {x: 18, y: 45}
+  densityRange: {x: 40, y: 300}
+  rotationRange: {x: 0.2, y: 3}
+  temperatureRange: {x: 60000, y: 1000000}
+  albedoRange: {x: 0.7, y: 1}
+  generationMode: 12
+  noiseLayerConfig:
+    continent:
+      scale: 0
+      octaves: 0
+      amplitude: 0
+      persistence: 0
+      lacunarity: 0
+      offset: {x: 0, y: 0, z: 0}
+    mountain:
+      scale: 0
+      octaves: 0
+      amplitude: 0
+      persistence: 0
+      lacunarity: 0
+      offset: {x: 0, y: 0, z: 0}
+    detail:
+      scale: 0
+      octaves: 0
+      amplitude: 0
+      persistence: 0
+      lacunarity: 0
+      offset: {x: 0, y: 0, z: 0}
+  hasSurface: 0
+  hasAtmosphere: 0
+  hasEventHorizon: 0
+  supportsLanding: 0
+  radiationHazard: 1
+  anomalyChance: 0.02
+  corePressureSupport: 10
+  fractureThreshold: 18
+  collapseThreshold: 24
+  novaThreshold: 1
+  structuralDamping: 4
+  enableMeshNodeDeformation: 0
+  meshTidalStartThreshold: 0.02
+  meshTidalMaxThreshold: 2
+  meshAxialStretchAtFull: 1.6
+  meshRadialSqueezeAtFull: 0.55
+  biomeColorCurves: []
+  emissiveRange: {x: 0.2, y: 1}
+  changeVersion: 0

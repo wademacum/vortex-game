@@ -234,12 +234,12 @@
   **İlerleme:**
   - Yapıldı: —
   - Yapılacak:
-    - [ ] Temel küre SDF fonksiyonunu yaz
-    - [ ] FBM noise fonksiyonunu HLSL içinde implemente et
-    - [ ] Kıta / Dağ / Detay katmanlarını ekle
-    - [ ] Parametre buffer'ı (ConstantBuffer) ile `RuntimeBodyData` değerlerini aktar
-    - [ ] `VoxelDataManager.cs` ile C# tarafında dispatch yönetimini yaz
-    - [ ] Buffer readback ile değerleri doğrula (negatif/pozitif dağılım)
+    - [x] Temel küre SDF fonksiyonunu yaz
+    - [x] FBM noise fonksiyonunu HLSL içinde implemente et
+    - [x] Kıta / Dağ / Detay katmanlarını ekle
+    - [x] Parametre aktarımı ile `RuntimeBodyData` değerlerini shader'a bağla
+    - [x] `VoxelDataManager.cs` ile C# tarafında dispatch yönetimini yaz
+    - [x] Buffer readback ile değerleri doğrula (negatif/pozitif dağılım)
     - [ ] Performans: 64³ grid < 5ms hedef
 
 ---
@@ -260,11 +260,11 @@
   **İlerleme:**
   - Yapıldı: —
   - Yapılacak:
-    - [ ] Marching Cubes LUT'unu HLSL sabit dizisi olarak yaz
-    - [ ] Her thread için case hesabını ve `AppendStructuredBuffer` yazımını yaz
-    - [ ] Normal hesabını SDF gradyanından (merkezi fark) yap
-    - [ ] Vertex Color biome atamasını entegre et
-    - [ ] C# tarafında mesh asset'e upload pipeline yaz
+    - [x] LUT include dosyasını yaz (`MarchingCubesLUT.hlsl`, tetrahedral lookup/decomposition)
+    - [x] Her thread için case hesabını ve `AppendStructuredBuffer` yazımını yaz
+    - [x] Normal hesabını SDF gradyanından (merkezi fark) yap
+    - [x] Vertex Color biome atamasını entegre et
+    - [x] C# tarafında mesh asset'e upload pipeline yaz
     - [ ] Sahne testi: gezegen görünür, renk geçişleri gözlemlenir
     - [ ] Wireframe modunda üçgen sayısını ve normal yönlerini doğrula
 
@@ -285,12 +285,20 @@
   **İlerleme:**
   - Yapıldı: —
   - Yapılacak:
-    - [ ] `DynamicPlanet.cs` yaz (init, dispatch, bellek yönetimi)
-    - [ ] `RegenerateMesh()` metodunu yaz    - [ ] Spawn/Init sonunda `GravityWell.ApplyProceduralBody(runtimeData.mass, runtimeData.radius)` çağrısını bağla
-    - [ ] Marching Cubes çıktısı güncellendikçe `MeshCollider.sharedMesh` senkronunu ekle (non-sphere yüzey çarpışması için)    - [ ] 3-tier LOD mantığını (kamera mesafesi bazlı) implemente et
+    - [x] `DynamicPlanet.cs` yaz (init, dispatch, bellek yönetimi)
+    - [x] `RegenerateMesh()` metodunu yaz
+    - [x] Spawn/Init sonunda `GravityWell.ApplyProceduralBody(runtimeData.mass, runtimeData.radius)` çağrısını bağla
+    - [x] Marching Cubes çıktısı güncellendikçe `MeshCollider.sharedMesh` senkronunu ekle (non-sphere yüzey çarpışması için)
+    - [x] 3-tier LOD mantığını (kamera mesafesi bazlı) implemente et
+    - [x] Inspector değişiminde (`bodyClass`, `templatePool`, `selectedTemplate`) runtime data'yı invalid ederek otomatik regenerate et
+    - [x] `selectedTemplate` ile objeye doğrudan template bağlama akışını ekle
+    - [x] DynamicPlanet için `SolidSdf` zorlaması ve non-SDF template uyarı logu ekle
+    - [x] SolidSdf template'lerde boş noise config için güvenli varsayılan noise otomatik doldurma ekle
+    - [ ] CelestialBody template preset setleri oluştur (`arcade`, `realistic`, `extreme`) ve varsayılan sample asset'lere uygula
     - [ ] `RelativisticBody` bileşeniyle ortak kullanım testini yap
     - [ ] Prefab oluştur
     - [ ] LOD geçiş testi (kamera ileri/geri)
+    - [x] `OnDestroy` buffer release yönetimini ekle
     - [ ] `OnDestroy` buffer release testi (Memory Profiler ile sızıntı yok)
 
 ---

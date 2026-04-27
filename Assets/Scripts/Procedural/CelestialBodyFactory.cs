@@ -18,7 +18,19 @@ namespace Vortex.Procedural
             Random rng = new Random((uint)rngSeed);
 
             CelestialBodyTemplate selected = SelectTemplate(type, pool, ref rng);
-            return BuildRuntimeData(selected, ref rng);
+            return BuildRuntimeData(selected, ref rng, randomizeRanges: true);
+        }
+
+        public static RuntimeBodyData GenerateFromTemplate(int seed, CelestialBodyTemplate template, bool randomizeRanges)
+        {
+            if (template == null)
+            {
+                throw new ArgumentNullException(nameof(template));
+            }
+
+            int rngSeed = ToNonZeroSeed(seed);
+            Random rng = new Random((uint)rngSeed);
+            return BuildRuntimeData(template, ref rng, randomizeRanges);
         }
 
         private static CelestialBodyTemplate SelectTemplate(BodyClass type, CelestialBodyTemplate[] pool, ref Random rng)
@@ -70,18 +82,18 @@ namespace Vortex.Procedural
             throw new InvalidOperationException($"Unable to select template for body type {type}.");
         }
 
-        private static RuntimeBodyData BuildRuntimeData(CelestialBodyTemplate template, ref Random rng)
+        private static RuntimeBodyData BuildRuntimeData(CelestialBodyTemplate template, ref Random rng, bool randomizeRanges)
         {
             return new RuntimeBodyData
             {
                 bodyClass = template.bodyClass,
                 generationMode = template.generationMode,
-                mass = SampleRange(template.massRange, ref rng),
-                radius = SampleRange(template.radiusRange, ref rng),
-                density = SampleRange(template.densityRange, ref rng),
-                rotationSpeed = SampleRange(template.rotationRange, ref rng),
-                temperature = SampleRange(template.temperatureRange, ref rng),
-                albedo = SampleRange(template.albedoRange, ref rng),
+            mass = randomizeRanges ? SampleRange(template.massRange, ref rng) : Midpoint(template.massRange),
+            radius = randomizeRanges ? SampleRange(template.radiusRange, ref rng) : Midpoint(template.radiusRange),
+            density = randomizeRanges ? SampleRange(template.densityRange, ref rng) : Midpoint(template.densityRange),
+            rotationSpeed = randomizeRanges ? SampleRange(template.rotationRange, ref rng) : Midpoint(template.rotationRange),
+            temperature = randomizeRanges ? SampleRange(template.temperatureRange, ref rng) : Midpoint(template.temperatureRange),
+            albedo = randomizeRanges ? SampleRange(template.albedoRange, ref rng) : Midpoint(template.albedoRange),
                 anomalyChance = Mathf.Clamp01(template.anomalyChance),
                 hasSurface = template.hasSurface,
                 hasAtmosphere = template.hasAtmosphere,
@@ -109,6 +121,13 @@ namespace Vortex.Procedural
             float min = Mathf.Min(range.x, range.y);
             float max = Mathf.Max(range.x, range.y);
             return NextFloat(ref rng, min, max);
+        }
+
+        private static float Midpoint(Vector2 range)
+        {
+            float min = Mathf.Min(range.x, range.y);
+            float max = Mathf.Max(range.x, range.y);
+            return (min + max) * 0.5f;
         }
 
         private static float NextFloat(ref Random rng, float min, float max)

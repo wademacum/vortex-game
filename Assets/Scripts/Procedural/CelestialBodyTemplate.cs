@@ -49,5 +49,64 @@ namespace Vortex.Procedural
         [Header("Rendering")]
         public Gradient[] biomeColorCurves;
         public Vector2 emissiveRange = new Vector2(0f, 1f);
+
+        [SerializeField, HideInInspector] private int changeVersion;
+        public int ChangeVersion => changeVersion;
+
+        protected void NotifyTemplateChanged()
+        {
+            unchecked
+            {
+                changeVersion++;
+            }
+        }
+
+        protected void EnsureSolidSdfNoiseDefaults()
+        {
+            if ((generationMode & GenerationMode.SolidSdf) == 0)
+            {
+                return;
+            }
+
+            bool allZero =
+                Mathf.Approximately(noiseLayerConfig.continent.amplitude, 0f) &&
+                Mathf.Approximately(noiseLayerConfig.mountain.amplitude, 0f) &&
+                Mathf.Approximately(noiseLayerConfig.detail.amplitude, 0f);
+
+            if (!allZero)
+            {
+                return;
+            }
+
+            noiseLayerConfig.continent = new NoiseLayer
+            {
+                scale = 0.01f,
+                octaves = 4,
+                amplitude = 20f,
+                persistence = 0.5f,
+                lacunarity = 2f,
+                offset = new Vector3(17f, 31f, 53f)
+            };
+
+            noiseLayerConfig.mountain = new NoiseLayer
+            {
+                scale = 0.03f,
+                octaves = 4,
+                amplitude = 9f,
+                persistence = 0.55f,
+                lacunarity = 2f,
+                offset = new Vector3(113f, 79f, 41f)
+            };
+
+            noiseLayerConfig.detail = new NoiseLayer
+            {
+                scale = 0.08f,
+                octaves = 3,
+                amplitude = 2f,
+                persistence = 0.5f,
+                lacunarity = 2f,
+                offset = new Vector3(199f, 157f, 89f)
+            };
+        }
     }
 }

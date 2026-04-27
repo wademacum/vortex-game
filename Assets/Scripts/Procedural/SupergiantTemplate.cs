@@ -8,6 +8,7 @@ namespace Vortex.Procedural
         private void OnValidate()
         {
             bodyClass = BodyClass.Supergiant;
+            NotifyTemplateChanged();
         }
 
         private void Reset()
@@ -17,6 +18,7 @@ namespace Vortex.Procedural
             hasSurface = false;
             supportsLanding = false;
             radiationHazard = true;
+            NotifyTemplateChanged();
         }
     }
 }

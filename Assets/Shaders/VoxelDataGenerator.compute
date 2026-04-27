@@ -1,0 +1,128 @@
+#pragma kernel CSMain
+
+RWStructuredBuffer<float> _SdfOutput;
+
+int _GridResolution;
+float _VoxelSize;
+float3 _GridOrigin;
+float _BaseRadius;
+
+float _ContinentScale;
+int _ContinentOctaves;
+float _ContinentAmplitude;
+float _ContinentPersistence;
+float _ContinentLacunarity;
+float3 _ContinentOffset;
+
+float _MountainScale;
+int _MountainOctaves;
+float _MountainAmplitude;
+float _MountainPersistence;
+float _MountainLacunarity;
+float3 _MountainOffset;
+
+float _DetailScale;
+int _DetailOctaves;
+float _DetailAmplitude;
+float _DetailPersistence;
+float _DetailLacunarity;
+float3 _DetailOffset;
+
+uint Hash(uint x)
+{
+    x ^= x >> 16;
+    x *= 0x7feb352d;
+    x ^= x >> 15;
+    x *= 0x846ca68b;
+    x ^= x >> 16;
+    return x;
+}
+
+float HashToUnitFloat(uint x)
+{
+    return (Hash(x) & 0x00ffffff) / 16777215.0;
+}
+
+float ValueNoise3D(float3 p)
+{
+    float3 cell = floor(p);
+    float3 f = frac(p);
+    float3 u = f * f * (3.0 - 2.0 * f);
+
+    uint x0 = asuint((int)cell.x);
+    uint y0 = asuint((int)cell.y);
+    uint z0 = asuint((int)cell.z);
+    uint x1 = asuint((int)cell.x + 1);
+    uint y1 = asuint((int)cell.y + 1);
+    uint z1 = asuint((int)cell.z + 1);
+
+    uint n000 = x0 * 73856093u ^ y0 * 19349663u ^ z0 * 83492791u;
+    uint n100 = x1 * 73856093u ^ y0 * 19349663u ^ z0 * 83492791u;
+    uint n010 = x0 * 73856093u ^ y1 * 19349663u ^ z0 * 83492791u;
+    uint n110 = x1 * 73856093u ^ y1 * 19349663u ^ z0 * 83492791u;
+    uint n001 = x0 * 73856093u ^ y0 * 19349663u ^ z1 * 83492791u;
+    uint n101 = x1 * 73856093u ^ y0 * 19349663u ^ z1 * 83492791u;
+    uint n011 = x0 * 73856093u ^ y1 * 19349663u ^ z1 * 83492791u;
+    uint n111 = x1 * 73856093u ^ y1 * 19349663u ^ z1 * 83492791u;
+
+    float v000 = HashToUnitFloat(n000);
+    float v100 = HashToUnitFloat(n100);
+    float v010 = HashToUnitFloat(n010);
+    float v110 = HashToUnitFloat(n110);
+    float v001 = HashToUnitFloat(n001);
+    float v101 = HashToUnitFloat(n101);
+    float v011 = HashToUnitFloat(n011);
+    float v111 = HashToUnitFloat(n111);
+
+    float x00 = lerp(v000, v100, u.x);
+    float x10 = lerp(v010, v110, u.x);
+    float x01 = lerp(v001, v101, u.x);
+    float x11 = lerp(v011, v111, u.x);
+    float y0v = lerp(x00, x10, u.y);
+    float y1v = lerp(x01, x11, u.y);
+
+    return lerp(y0v, y1v, u.z) * 2.0 - 1.0;
+}
+
+float Fbm(float3 p, float scale, int octaves, float amplitude, float persistence, float lacunarity)
+{
+    if (octaves <= 0 || amplitude <= 0.0 || scale <= 0.0)
+    {
+        return 0.0;
+    }
+
+    float sum = 0.0;
+    float freq = max(scale, 0.0001);
+    float amp = amplitude;
+
+    [loop]
+    for (int i = 0; i < octaves; i++)
+    {
+        sum += ValueNoise3D(p * freq) * amp;
+        freq *= max(lacunarity, 1.0);
+        amp *= persistence;
+    }
+
+    return sum;
+}
+
+[numthreads(8, 8, 8)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)_GridResolution || id.y >= (uint)_GridResolution || id.z >= (uint)_GridResolution)
+    {
+        return;
+    }
+
+    uint index = id.x + (uint)_GridResolution * (id.y + (uint)_GridResolution * id.z);
+
+    float3 worldPos = _GridOrigin + (float3)id * _VoxelSize;
+    float baseSdf = length(worldPos) - _BaseRadius;
+
+    float continent = Fbm(worldPos + _ContinentOffset, _ContinentScale, _ContinentOctaves, _ContinentAmplitude, _ContinentPersistence, _ContinentLacunarity);
+    float mountain = Fbm(worldPos + _MountainOffset, _MountainScale, _MountainOctaves, _MountainAmplitude, _MountainPersistence, _MountainLacunarity);
+    float detail = Fbm(worldPos + _DetailOffset, _DetailScale, _DetailOctaves, _DetailAmplitude, _DetailPersistence, _DetailLacunarity);
+
+    float noiseDisplacement = continent + mountain + detail;
+    _SdfOutput[index] = baseSdf - noiseDisplacement;
+}
