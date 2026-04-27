@@ -24,23 +24,35 @@ namespace Vortex.Ship
 
         private void FixedUpdate()
         {
+            Vector3 input = ReadInputVector();
+            ApplyThrustInput(input, Time.fixedUnscaledDeltaTime);
+        }
+
+        public void ApplyThrustInput(Vector3 input, float deltaTime)
+        {
             if (body == null || body.IsTimeFrozen)
             {
                 return;
             }
 
-            Vector3 input = ReadInputVector();
-            if (input.sqrMagnitude <= 0f)
+            Vector3 clampedInput = Vector3.ClampMagnitude(input, 1f);
+            if (clampedInput.sqrMagnitude <= 0f)
+            {
+                return;
+            }
+
+            float dt = Mathf.Max(0f, deltaTime);
+            if (dt <= 0f)
             {
                 return;
             }
 
             Vector3 worldThrust =
-                transform.forward * (input.z * thrustForce) +
-                transform.right * (input.x * strafeForce) +
-                transform.up * (input.y * verticalForce);
+                transform.forward * (clampedInput.z * thrustForce) +
+                transform.right * (clampedInput.x * strafeForce) +
+                transform.up * (clampedInput.y * verticalForce);
 
-            Vector3 deltaV = worldThrust * Time.fixedUnscaledDeltaTime;
+            Vector3 deltaV = worldThrust * dt;
             Vector4 fv = body.FourVelocity;
             fv.x += deltaV.x;
             fv.y += deltaV.y;

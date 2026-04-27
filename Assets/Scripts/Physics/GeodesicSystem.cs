@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
-using UnityEngine.Jobs;
 
 namespace Vortex.Physics
 {
@@ -55,7 +54,6 @@ namespace Vortex.Physics
             NativeArray<GeodesicBodyStateData> currentStates = new NativeArray<GeodesicBodyStateData>(bodyCount, Allocator.TempJob);
             NativeArray<GeodesicBodyStateData> nextStates = new NativeArray<GeodesicBodyStateData>(bodyCount, Allocator.TempJob);
             NativeArray<float> localDeltaTimes = new NativeArray<float>(bodyCount, Allocator.TempJob);
-            TransformAccessArray transforms = new TransformAccessArray(bodyCount);
 
             try
             {
@@ -80,8 +78,6 @@ namespace Vortex.Physics
                     gravitationalMass = body.GravitationalMass,
                     contributesToGravity = (byte)(body.ContributesToGravity ? 1 : 0)
                 };
-
-                transforms.Add(body.transform);
             }
 
             NativeArray<GravityWellData> wellData = new NativeArray<GravityWellData>(wells.Count, Allocator.TempJob);
@@ -103,14 +99,7 @@ namespace Vortex.Physics
             };
 
             JobHandle integrateHandle = integrateJob.Schedule(bodyCount, 32);
-
-            GeodesicTransformApplyJob applyJob = new GeodesicTransformApplyJob
-            {
-                states = nextStates
-            };
-
-            JobHandle applyHandle = applyJob.Schedule(transforms, integrateHandle);
-            applyHandle.Complete();
+            integrateHandle.Complete();
 
             for (int i = 0; i < bodyCount; i++)
             {
@@ -228,7 +217,6 @@ namespace Vortex.Physics
             }
             finally
             {
-                transforms.Dispose();
                 localDeltaTimes.Dispose();
                 nextStates.Dispose();
                 currentStates.Dispose();

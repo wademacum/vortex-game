@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using UnityEngine;
+using Vortex.Ship;
 using Vortex.Physics;
 
 namespace Vortex.Tests.PlayMode
@@ -185,6 +186,40 @@ namespace Vortex.Tests.PlayMode
             Assert.AreEqual(5f, data.position.x, 0.001f);
             Assert.AreEqual(10f, data.position.y, 0.001f);
             Assert.AreEqual(15f, data.position.z, 0.001f);
+        }
+
+        // ── Ship controller thrust integration (Phase 1 P1 / Task 8) ───────
+
+        [Test]
+        public void ShipController_ApplyThrustInput_ChangesFourVelocity_WhenProperTimeActive()
+        {
+            GameObject go = new GameObject("Ship");
+            RelativisticBody body = go.AddComponent<RelativisticBody>();
+            ShipController controller = go.AddComponent<ShipController>();
+
+            Vector4 before = body.FourVelocity;
+            controller.ApplyThrustInput(new Vector3(0f, 0f, 1f), 1f);
+            Vector4 after = body.FourVelocity;
+
+            Assert.Greater(after.z, before.z, "Forward thrust should increase z velocity component.");
+        }
+
+        [Test]
+        public void ShipController_ApplyThrustInput_DoesNothing_WhenProperTimeFrozen()
+        {
+            GameObject go = new GameObject("ShipFrozen");
+            RelativisticBody body = go.AddComponent<RelativisticBody>();
+            ShipController controller = go.AddComponent<ShipController>();
+
+            body.FreezeProperTime();
+            Vector4 before = body.FourVelocity;
+            controller.ApplyThrustInput(new Vector3(0f, 0f, 1f), 1f);
+            Vector4 after = body.FourVelocity;
+
+            Assert.AreEqual(before.x, after.x, 0.0001f);
+            Assert.AreEqual(before.y, after.y, 0.0001f);
+            Assert.AreEqual(before.z, after.z, 0.0001f);
+            Assert.AreEqual(before.w, after.w, 0.0001f);
         }
     }
 }

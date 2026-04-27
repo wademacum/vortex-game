@@ -3,13 +3,13 @@
 Bu dosya, ajanin ilerlemeyi surekli takip etmesi icin resmi durum kaydidir.
 
 ## GUNCEL DURUM OZETI
-- Tarih: 2026-04-25
-- Aktif Faz: Faz 1 - Prosedurel Uretim Altyapisi + Cekirdek Fizik (Bkz: `BACKLOG.md` Faz 1)
-- Durum: Faz 1 P0 ilerliyor (Geodesic job altyapisi ve deterministik factory testleri guncellendi)
+- Tarih: 2026-04-27
+- Aktif Faz: Faz 2 - Vortex Arazisi (Bkz: `BACKLOG.md` Faz 2)
+- Durum: Faz 2 P0 Gorev 1 baslatildi ve ilk compute pipeline teslim edildi; Faz 1 kapanis dogrulamalari ayrica suruyor.
 
 ## FAZ DURUM TABLOSU
-- Faz 1: Not Started
-- Faz 2: Not Started
+- Faz 1: In Progress (kapanis dogrulama)
+- Faz 2: In Progress
 - Faz 3: Not Started
 - Faz 4: Not Started
 - Faz 5: Not Started
@@ -38,6 +38,15 @@ Bu dosya, ajanin ilerlemeyi surekli takip etmesi icin resmi durum kaydidir.
 - Faz 1 Gv 8 kod omurgasi eklendi: `Assets/Scripts/Ship/ShipController.cs` (WASD/Space/Shift itki, `fourVelocity` entegrasyonu, `properTime == 0` kilidi) ve `Assets/Scripts/Ship/CameraFollow.cs` (smooth follow kamera).
 - Faz 1 Gv 8 bagimlilik/asset adimi tamamlandi: `Packages/manifest.json` icine `com.unity.inputsystem` eklendi ve `Assets/Settings/InputActions.inputactions` olusturuldu.
 - Faz 1 Gv 6-7 manuel testlerini hizlandirmak icin `Assets/Scripts/Debug/GeodesicTestHarness.cs` eklendi (tek cisim dairesel yörünge baslangici ve 50 cisim stres senaryosu kurulum yardimcisi).
+- Faz 1 P1 baslangic adimi: `ShipController` icine test edilebilir `ApplyThrustInput(Vector3 input, float deltaTime)` API'si eklendi; mevcut input akisi bu metoda baglandi.
+- Faz 1 P1 otomasyon adimi: `Assets/Tests/PlayMode/PhysicsPlayModeTests.cs` icine ship itki davranisi icin iki yeni PlayMode testi eklendi (proper time aktifken hiz artisi, proper time donukken itki kilidi).
+- Faz 2 P0 Gorev 1 kodlandi: `Assets/Shaders/VoxelDataGenerator.compute` olusturuldu (temel kure SDF + 3 katman FBM noise: continent/mountain/detail).
+- Faz 2 P0 Gorev 1 kodlandi: `Assets/Scripts/Procedural/VoxelDataManager.cs` eklendi (ComputeBuffer tahsisi, dispatch wrapper, `RuntimeBodyData` parametre baglama, SDF readback dagilim dogrulamasi).
+- Faz 2 P0 Gorev 2 baslatildi: `Assets/Shaders/MarchingCubesMesher.compute` eklendi (tetrahedral cell decomposition + append triangle akisi + merkezi fark normal + vertex color biome karisimi).
+- Faz 2 P0 Gorev 2 baslatildi: `Assets/Shaders/MarchingCubesLUT.hlsl` eklendi (tetra edge/cube decomposition LUT include).
+- Faz 2 P0 Gorev 2 baslatildi: `Assets/Scripts/Procedural/MarchingCubesMesher.cs` eklendi (dispatch, append counter readback, Mesh vertices/normals/colors upload).
+- Faz 2 P0 Gorev 3 baslatildi: `Assets/Scripts/Procedural/DynamicPlanet.cs` eklendi (factory/fallback runtime data, voxel->mesh pipeline, 3 kademe LOD secimi, `MeshCollider.sharedMesh` senkronu, `GravityWell.ApplyProceduralBody` baglantisi).
+- Faz 2 altyapi guncellemesi: `VoxelDataManager` icine runtime LOD icin `ConfigureGrid(resolution, voxelSize)` API'si eklendi.
 - `GravityWell` temas cozumune fallback eklendi (ComputePenetration basarisiz oldugunda radius/probe cozumune gecis).
 - `RelativisticBody` collider cache'i cocuk transformlardan da toplanacak sekilde genisletildi.
 - `GeodesicSystem` icinde self-well filtrelemesi eklendi (body'nin kendi well/collider'i ile temas cozumune girmesi engellendi).
@@ -50,13 +59,12 @@ Bu dosya, ajanin ilerlemeyi surekli takip etmesi icin resmi durum kaydidir.
 - Dokuman guncellemesi: `Architecture.md` icine `StructuralResponseBody`, `MeshNodeDeformer` ve `ProceduralBodyPhysicsBinder` mimari bolumleri eklendi.
 - Yeni test plani dokumani olusturuldu: `RELATIVISTIC_STRUCTURAL_TEST_PLAN.md` (etiketli yapilacak test listesi).
 
-## BIR SONRAKI ADIMLAR (FAZ 1)
-1. Unity Editor icinde Faz 1 P0 dogrulamalari: tek cisim eliptik yörünge, same-seed manuel kontrol, Inspector freeze/restore akis testi.
-2. `Assets/Scenes/Tests/GeodesicOrbitTest.unity` sahnesini kurup Faz 1 Gv 7 kabul kriterlerini tamamla (dusuk hiz Newton limiti, yuksek hiz presesyon, ProperTime freeze, NaN/Infinity kontrolu).
-3. Celestial body icin ornek `.asset` dosyalarini olusturup Inspector parametre setlerini doldur (`PlanetTemplate`, `BlackHoleTemplate` minimum set).
-4. Faz 1 kapisi icin profiler dogrulamasini yap (50 body hedefi, 60 FPS siniri).
-5. `RELATIVISTIC_STRUCTURAL_TEST_PLAN.md` icindeki TEST-STR-001..004 setini once calistir, sonuclari PASS/FAIL olarak raporla.
-6. Collision ve deformation icin ayri sahne dogrulamalariyla TEST-STR-010..013 setini tamamla.
+## BIR SONRAKI ADIMLAR (FAZ 2)
+1. Unity Editor sahne dogrulamasi: `DynamicPlanet` uzerinde voxel + mesher pipeline goruntusunu teyit et (mesh ciziliyor mu, renk gecisi var mi).
+2. Faz 2 P0 Gorev 2 kabul testi: wireframe/normal yonleri ve triangle sayisi kontrolu.
+3. Faz 2 P0 Gorev 1 kabul testi: 64^3 dispatch icin profiler olcumu al, <5ms hedefine gore raporla.
+4. `DynamicPlanet.prefab` olustur ve test sahnesine bagla.
+5. Faz 2 P1 gorevi icin SDF-disi cisim renderer prototipine gec.
 
 ## BLOKERLER
 - Teknik blokaj tanimli degil.
