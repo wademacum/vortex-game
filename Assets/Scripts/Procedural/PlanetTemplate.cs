@@ -77,6 +77,10 @@ namespace Vortex.Procedural
                 };
             }
 
+            planetShapeConfig.continentFloor = Mathf.Max(planetShapeConfig.continentFloor, 0.15f);
+            planetShapeConfig.continentStrength = Mathf.Max(planetShapeConfig.continentStrength, 1.2f);
+            planetShapeConfig.mountainStrength = Mathf.Max(planetShapeConfig.mountainStrength, 0.85f);
+            planetShapeConfig.detailStrength = Mathf.Max(planetShapeConfig.detailStrength, 0.35f);
             planetShapeConfig.oceanDepthMultiplier = Mathf.Max(planetShapeConfig.oceanDepthMultiplier, 2f);
             planetShapeConfig.oceanFloorDepth = Mathf.Max(planetShapeConfig.oceanFloorDepth, 1f);
             planetShapeConfig.oceanFloorSmoothing = Mathf.Max(planetShapeConfig.oceanFloorSmoothing, 0.5f);

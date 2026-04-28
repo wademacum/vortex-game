@@ -33,6 +33,10 @@ namespace Vortex.Procedural
         public NoiseLayer mountain;
         public NoiseLayer detail;
         public NoiseLayer mask;
+        [Min(0f)] public float continentFloor;
+        [Min(0f)] public float continentStrength;
+        [Min(0f)] public float mountainStrength;
+        [Min(0f)] public float detailStrength;
         [Min(0f)] public float oceanDepthMultiplier;
         [Min(0f)] public float oceanFloorDepth;
         [Min(0f)] public float oceanFloorSmoothing;

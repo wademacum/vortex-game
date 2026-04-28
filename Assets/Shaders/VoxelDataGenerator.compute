@@ -60,6 +60,10 @@ float _PlanetOceanDepthMultiplier;
 float _PlanetOceanFloorDepth;
 float _PlanetOceanFloorSmoothing;
 float _PlanetMountainBlend;
+float _PlanetContinentFloor;
+float _PlanetContinentStrength;
+float _PlanetMountainStrength;
+float _PlanetDetailStrength;
 
 float _MoonShapeScale;
 int _MoonShapeOctaves;
@@ -306,18 +310,20 @@ float3 SafeNormalize(float3 p)
 
 float EvaluatePlanetDisplacement(float3 localPos)
 {
-    float continent = Fbm(localPos + _PlanetContinentOffset, _PlanetContinentScale, _PlanetContinentOctaves, _PlanetContinentAmplitude, _PlanetContinentPersistence, _PlanetContinentLacunarity);
+    float3 dir = SafeNormalize(localPos);
+    float baseContinent = Fbm(dir + _PlanetContinentOffset, _PlanetContinentScale, _PlanetContinentOctaves, _PlanetContinentAmplitude, _PlanetContinentPersistence, _PlanetContinentLacunarity);
+    float continent = max(0.0, baseContinent + _PlanetContinentFloor) * _PlanetContinentStrength;
     continent = SmoothMax(continent, -_PlanetOceanFloorDepth, max(_PlanetOceanFloorSmoothing, 0.001));
     if (continent < 0.0)
     {
         continent *= (1.0 + _PlanetOceanDepthMultiplier);
     }
 
-    float mountain = RidgeFbm(localPos + _PlanetMountainOffset, _PlanetMountainScale, _PlanetMountainOctaves, _PlanetMountainAmplitude, _PlanetMountainPersistence, _PlanetMountainLacunarity);
-    float detail = Fbm(localPos + _PlanetDetailOffset, _PlanetDetailScale, _PlanetDetailOctaves, _PlanetDetailAmplitude, _PlanetDetailPersistence, _PlanetDetailLacunarity);
-    float mask = saturate(Fbm(localPos + _PlanetMaskOffset, _PlanetMaskScale, _PlanetMaskOctaves, _PlanetMaskAmplitude, _PlanetMaskPersistence, _PlanetMaskLacunarity) * max(_PlanetMountainBlend, 0.001));
-
-    return continent + mountain * mask + detail;
+    float mask = saturate(Fbm(dir + _PlanetMaskOffset, _PlanetMaskScale, _PlanetMaskOctaves, _PlanetMaskAmplitude, _PlanetMaskPersistence, _PlanetMaskLacunarity) * max(_PlanetMountainBlend, 0.001));
+    float mountain = RidgeFbm(dir + _PlanetMountainOffset, _PlanetMountainScale, _PlanetMountainOctaves, _PlanetMountainAmplitude, _PlanetMountainPersistence, _PlanetMountainLacunarity) * _PlanetMountainStrength;
+    float detail = Fbm(dir + _PlanetDetailOffset, _PlanetDetailScale, _PlanetDetailOctaves, _PlanetDetailAmplitude, _PlanetDetailPersistence, _PlanetDetailLacunarity) * _PlanetDetailStrength;
+    float maskedSecondary = (mountain + detail) * mask;
+    return continent + maskedSecondary;
 }
 
 float EvaluateMoonCraters(float3 surfaceDir)

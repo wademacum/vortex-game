@@ -262,6 +262,10 @@ namespace Vortex.Procedural
             voxelDataGenerator.SetFloat("_PlanetOceanFloorDepth", Mathf.Max(0f, config.oceanFloorDepth));
             voxelDataGenerator.SetFloat("_PlanetOceanFloorSmoothing", Mathf.Max(0f, config.oceanFloorSmoothing));
             voxelDataGenerator.SetFloat("_PlanetMountainBlend", Mathf.Max(0.001f, config.mountainBlend));
+            voxelDataGenerator.SetFloat("_PlanetContinentFloor", Mathf.Max(0f, config.continentFloor));
+            voxelDataGenerator.SetFloat("_PlanetContinentStrength", Mathf.Max(0f, config.continentStrength));
+            voxelDataGenerator.SetFloat("_PlanetMountainStrength", Mathf.Max(0f, config.mountainStrength));
+            voxelDataGenerator.SetFloat("_PlanetDetailStrength", Mathf.Max(0f, config.detailStrength));
         }
 
         private void PushMoonShapeParams(int kernelIndex, MoonShapeConfig config, MoonTerrainNoiseConfig terrainConfig)

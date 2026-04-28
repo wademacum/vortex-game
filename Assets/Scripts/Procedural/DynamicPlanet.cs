@@ -474,6 +474,13 @@ namespace Vortex.Procedural
                 if (data.asteroidShapeConfig.pitRimSharpness <= 0f) data.asteroidShapeConfig.pitRimSharpness = 0.72f;
                 if (data.asteroidShapeConfig.surfaceIrregularity <= 0f) data.asteroidShapeConfig.surfaceIrregularity = 0.35f;
             }
+            else
+            {
+                if (data.planetShapeConfig.continentFloor <= 0f) data.planetShapeConfig.continentFloor = 0.15f;
+                if (data.planetShapeConfig.continentStrength <= 0f) data.planetShapeConfig.continentStrength = 1.2f;
+                if (data.planetShapeConfig.mountainStrength <= 0f) data.planetShapeConfig.mountainStrength = 0.85f;
+                if (data.planetShapeConfig.detailStrength <= 0f) data.planetShapeConfig.detailStrength = 0.35f;
+            }
 
             return data;
         }
@@ -604,6 +611,10 @@ namespace Vortex.Procedural
                     mountain = CreateNoiseLayer(0.03f, 4, 9f, 0.55f, 2f, new Vector3(113f, 79f, 41f)),
                     detail = CreateNoiseLayer(0.08f, 3, 2f, 0.5f, 2f, new Vector3(199f, 157f, 89f)),
                     mask = CreateNoiseLayer(0.015f, 3, 1f, 0.5f, 2f, new Vector3(67f, 23f, 149f)),
+                    continentFloor = 0.15f,
+                    continentStrength = 1.2f,
+                    mountainStrength = 0.85f,
+                    detailStrength = 0.35f,
                     oceanDepthMultiplier = 2f,
                     oceanFloorDepth = 1f,
                     oceanFloorSmoothing = 0.5f,
@@ -858,9 +869,9 @@ namespace Vortex.Procedural
             }
             else
             {
-                maxDisplacement += Mathf.Abs(data.planetShapeConfig.continent.amplitude);
-                maxDisplacement += Mathf.Abs(data.planetShapeConfig.mountain.amplitude);
-                maxDisplacement += Mathf.Abs(data.planetShapeConfig.detail.amplitude);
+                maxDisplacement += Mathf.Abs(data.planetShapeConfig.continent.amplitude) * Mathf.Max(0f, data.planetShapeConfig.continentStrength);
+                maxDisplacement += Mathf.Abs(data.planetShapeConfig.mountain.amplitude) * Mathf.Max(0f, data.planetShapeConfig.mountainStrength);
+                maxDisplacement += Mathf.Abs(data.planetShapeConfig.detail.amplitude) * Mathf.Max(0f, data.planetShapeConfig.detailStrength);
                 maxDisplacement += Mathf.Abs(data.planetShapeConfig.oceanFloorDepth);
             }
 

@@ -184,6 +184,10 @@ namespace Vortex.Procedural
             template.planetShapeConfig.mountain = CreateNoise(rng, 0.015f, 0.045f, 4f, 16f, 3, 5, ridgeLike: true);
             template.planetShapeConfig.detail = CreateNoise(rng, 0.05f, 0.12f, 1f, 5f, 2, 4);
             template.planetShapeConfig.mask = CreateNoise(rng, 0.008f, 0.03f, 0.7f, 1.4f, 2, 4);
+            template.planetShapeConfig.continentFloor = RandomRange(rng, 0.08f, 0.28f);
+            template.planetShapeConfig.continentStrength = RandomRange(rng, 0.9f, 1.8f);
+            template.planetShapeConfig.mountainStrength = RandomRange(rng, 0.65f, 1.45f);
+            template.planetShapeConfig.detailStrength = RandomRange(rng, 0.15f, 0.7f);
             template.planetShapeConfig.oceanDepthMultiplier = RandomRange(rng, 1.6f, 5f);
             template.planetShapeConfig.oceanFloorDepth = RandomRange(rng, 0.2f, 1.8f);
             template.planetShapeConfig.oceanFloorSmoothing = RandomRange(rng, 0.25f, 1.2f);
