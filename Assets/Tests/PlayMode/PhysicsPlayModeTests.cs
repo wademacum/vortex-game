@@ -2,6 +2,7 @@ using NUnit.Framework;
 using UnityEngine;
 using Vortex.Ship;
 using Vortex.Physics;
+using Vortex.Procedural;
 
 namespace Vortex.Tests.PlayMode
 {
@@ -132,6 +133,24 @@ namespace Vortex.Tests.PlayMode
             body.SetPhysicsState(newPos, Quaternion.identity, Vector4.zero);
 
             Assert.AreEqual(newPos, body.PhysicsPosition);
+        }
+
+        [Test]
+        public void ProceduralBodyPhysicsBinder_AppliesRuntimeSpin_ToRelativisticBody()
+        {
+            GameObject go = new GameObject("SpinningPlanet");
+            RuntimeBodyData data = new RuntimeBodyData
+            {
+                mass = 1000f,
+                radius = 50f,
+                rotationSpeed = 24f
+            };
+
+            ProceduralBodyPhysicsBinder.Apply(go, data);
+
+            RelativisticBody body = go.GetComponent<RelativisticBody>();
+            Assert.IsNotNull(body);
+            Assert.AreEqual(Vector3.up * 24f, body.IntrinsicAngularVelocityDegPerSec);
         }
 
         // ── Surface collision resolution ──────────────────────────────────────

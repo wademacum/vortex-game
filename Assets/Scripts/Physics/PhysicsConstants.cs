@@ -3,17 +3,18 @@ namespace Vortex.Physics
     public static class PhysicsConstants
     {
         public const float GravitationalConstant = 1f;
-        public const float SpeedOfLight = 100f;
+        public const float SpeedOfLight = 300f;
+        public const float DefaultSimulationTimeScale = 4f;
 
         public const float GameplaySpeedMinRatio = 0.60f;
         public const float GameplaySpeedMaxRatio = 0.80f;
         public const float SoftSpeedLimitRatio = 0.85f;
-        public const float HardSpeedLimitRatio = 0.95f;
+        public const float HardSpeedLimitRatio = 0.98f;
 
         public const float MinRelativityFactor = 0.01f;
         public const float IntegrationEpsilon = 0.0001f;
         public const float SurfaceContactOffset = 0.0005f;
-        public const float MaxIntegrationSubstep = 0.005f;
+        public const float MaxIntegrationSubstep = 0.01f;
         public const float CollisionSpinDegreesPerSpeed = 12f;
         public const float MaxCollisionSpinPerStep = 1.25f;
         public const float SurfaceStickReleaseSpeed = 0.35f;

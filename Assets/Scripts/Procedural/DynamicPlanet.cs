@@ -165,12 +165,10 @@ namespace Vortex.Procedural
             {
                 moonTemplate.ApplyAuthoringDefaults();
             }
-            /*
             else if (selectedTemplate is AsteroidClusterTemplate asteroidTemplate)
             {
                 asteroidTemplate.ApplyAuthoringDefaults();
             }
-            */
 
             #if UNITY_EDITOR
             UnityEditor.EditorUtility.SetDirty(selectedTemplate);
@@ -415,6 +413,7 @@ namespace Vortex.Procedural
                 data.noiseLayerConfig = fallback.noiseLayerConfig;
                 data.planetShapeConfig = fallback.planetShapeConfig;
                 data.moonShapeConfig = fallback.moonShapeConfig;
+                data.moonTerrainNoiseConfig = fallback.moonTerrainNoiseConfig;
             }
 
             if (data.baseShapeConfig.verticalSquash <= 0f)
@@ -437,16 +436,43 @@ namespace Vortex.Procedural
                 }
                 if (data.moonShapeConfig.craterDepth <= 0f)
                 {
-                    data.moonShapeConfig.craterDepth = 0.001f;
+                    data.moonShapeConfig.craterDepth = 0.03f;
                 }
                 if (data.moonShapeConfig.craterRimSharpness <= 0f)
                 {
-                    data.moonShapeConfig.craterRimSharpness = 0.01f;
+                    data.moonShapeConfig.craterRimSharpness = 0.85f;
                 }
-                if (data.moonShapeConfig.craterNoiseScale <= 0f)
+                data.moonShapeConfig.craterRadiusBias = Mathf.Clamp01(data.moonShapeConfig.craterRadiusBias <= 0f ? 0.65f : data.moonShapeConfig.craterRadiusBias);
+                if (data.moonShapeConfig.craterFloorHeightRange == Vector2.zero) data.moonShapeConfig.craterFloorHeightRange = new Vector2(0.68f, 0.9f);
+                data.moonShapeConfig.craterFloorRadius = Mathf.Clamp01(data.moonShapeConfig.craterFloorRadius <= 0f ? 0.38f : data.moonShapeConfig.craterFloorRadius);
+                if (data.moonShapeConfig.craterWallSmoothness <= 0f) data.moonShapeConfig.craterWallSmoothness = 0.48f;
+                if (data.moonShapeConfig.craterRimWidth <= 0f) data.moonShapeConfig.craterRimWidth = 0.18f;
+                if (data.moonShapeConfig.craterRimHeight <= 0f) data.moonShapeConfig.craterRimHeight = 0.20f;
+                if (data.moonShapeConfig.craterEdgeWarpFrequency <= 0f) data.moonShapeConfig.craterEdgeWarpFrequency = 1.2f;
+                if (data.moonShapeConfig.craterEdgeWarpStrength <= 0f) data.moonShapeConfig.craterEdgeWarpStrength = 0.05f;
+                data.moonShapeConfig.craterCrowdingRadiusScale = Mathf.Clamp01(data.moonShapeConfig.craterCrowdingRadiusScale <= 0f ? 0.72f : data.moonShapeConfig.craterCrowdingRadiusScale);
+                data.moonShapeConfig.craterDistributionJitter = Mathf.Clamp01(data.moonShapeConfig.craterDistributionJitter <= 0f ? 0.35f : data.moonShapeConfig.craterDistributionJitter);
+                data.moonShapeConfig.youngCraterFraction = Mathf.Clamp01(data.moonShapeConfig.youngCraterFraction <= 0f ? 0.12f : data.moonShapeConfig.youngCraterFraction);
+            }
+            else if (data.shapeModel == ShapeModel.Asteroid)
+            {
+                if (data.asteroidShapeConfig.baseShape.amplitude <= 0f)
                 {
-                    data.moonShapeConfig.craterNoiseScale = 0.001f;
+                    data.asteroidShapeConfig.baseShape = CreateNoiseLayer(0.028f, 4, 5.5f, 0.5f, 2.1f, new Vector3(11f, 23f, 47f));
                 }
+                if (data.asteroidShapeConfig.detailA.amplitude <= 0f)
+                {
+                    data.asteroidShapeConfig.detailA = CreateNoiseLayer(0.06f, 3, 2.8f, 0.48f, 2.25f, new Vector3(61f, 73f, 89f));
+                }
+                if (data.asteroidShapeConfig.detailB.amplitude <= 0f)
+                {
+                    data.asteroidShapeConfig.detailB = CreateNoiseLayer(0.12f, 2, 1.4f, 0.58f, 2.1f, new Vector3(101f, 113f, 131f));
+                }
+                if (data.asteroidShapeConfig.pitCount <= 0) data.asteroidShapeConfig.pitCount = 42;
+                if (data.asteroidShapeConfig.pitRadiusRange == Vector2.zero) data.asteroidShapeConfig.pitRadiusRange = new Vector2(0.02f, 0.1f);
+                if (data.asteroidShapeConfig.pitDepth <= 0f) data.asteroidShapeConfig.pitDepth = 0.028f;
+                if (data.asteroidShapeConfig.pitRimSharpness <= 0f) data.asteroidShapeConfig.pitRimSharpness = 0.72f;
+                if (data.asteroidShapeConfig.surfaceIrregularity <= 0f) data.asteroidShapeConfig.surfaceIrregularity = 0.35f;
             }
 
             return data;
@@ -536,7 +562,7 @@ namespace Vortex.Procedural
             {
                 bodyClass = bodyClass,
                 generationMode = GenerationMode.SolidSdf,
-                shapeModel = bodyClass == BodyClass.Moon ? ShapeModel.Moon : ShapeModel.Planet,
+                shapeModel = bodyClass == BodyClass.Moon ? ShapeModel.Moon : bodyClass == BodyClass.AsteroidCluster ? ShapeModel.Asteroid : ShapeModel.Planet,
                 shadingModel = bodyClass == BodyClass.Moon || bodyClass == BodyClass.AsteroidCluster ? ShadingModel.MoonBiomes : ShadingModel.PlanetBands,
                 mass = fallbackMass,
                 radius = fallbackRadius,
@@ -585,14 +611,43 @@ namespace Vortex.Procedural
                 },
                 moonShapeConfig = new MoonShapeConfig
                 {
-                    shape = CreateNoiseLayer(0.02f, 4, 6f, 0.5f, 2f, new Vector3(13f, 31f, 59f)),
-                    ridgeA = CreateNoiseLayer(0.035f, 4, 4f, 0.45f, 2.1f, new Vector3(71f, 97f, 127f)),
-                    ridgeB = CreateNoiseLayer(0.07f, 3, 2.5f, 0.5f, 2.2f, new Vector3(149f, 181f, 211f)),
                     craterCount = 24,
-                    craterRadiusRange = new Vector2(4f, 18f),
-                    craterDepth = 2f,
-                    craterRimSharpness = 2f,
-                    craterNoiseScale = 0.03f
+                    craterRadiusRange = new Vector2(0.02f, 0.09f),
+                    craterRadiusBias = 0.65f,
+                    craterDepth = 0.03f,
+                    craterFloorHeightRange = new Vector2(0.68f, 0.9f),
+                    craterFloorRadius = 0.38f,
+                    craterWallSmoothness = 0.48f,
+                    craterRimWidth = 0.18f,
+                    craterRimHeight = 0.20f,
+                    craterRimSharpness = 0.85f,
+                    craterEdgeWarpFrequency = 1.2f,
+                    craterEdgeWarpStrength = 0.05f,
+                    craterCrowdingRadiusScale = 0.72f,
+                    craterDistributionJitter = 0.35f,
+                    youngCraterFraction = 0.12f
+                },
+                moonTerrainNoiseConfig = new MoonTerrainNoiseConfig
+                {
+                    macroShape = CreateNoiseLayer(0.02f, 4, 6f, 0.5f, 2f, new Vector3(13f, 31f, 59f)),
+                    ridgeNoise = CreateNoiseLayer(0.035f, 4, 4f, 0.45f, 2.1f, new Vector3(71f, 97f, 127f)),
+                    detailNoise = CreateNoiseLayer(0.07f, 3, 2.5f, 0.5f, 2.2f, new Vector3(149f, 181f, 211f)),
+                    warpNoise = CreateNoiseLayer(0.03f, 2, 1f, 0.5f, 2f, new Vector3(191f, 223f, 251f)),
+                    warpStrength = 0.6f,
+                    macroStrength = 0.14f,
+                    ridgeStrength = 0.06f,
+                    detailStrength = 0.02f
+                },
+                asteroidShapeConfig = new AsteroidShapeConfig
+                {
+                    baseShape = CreateNoiseLayer(0.028f, 4, 5.5f, 0.5f, 2.1f, new Vector3(11f, 23f, 47f)),
+                    detailA = CreateNoiseLayer(0.06f, 3, 2.8f, 0.48f, 2.25f, new Vector3(61f, 73f, 89f)),
+                    detailB = CreateNoiseLayer(0.12f, 2, 1.4f, 0.58f, 2.1f, new Vector3(101f, 113f, 131f)),
+                    pitCount = 42,
+                    pitRadiusRange = new Vector2(0.02f, 0.1f),
+                    pitDepth = 0.028f,
+                    pitRimSharpness = 0.72f,
+                    surfaceIrregularity = 0.35f
                 },
                 planetShadingConfig = new PlanetShadingConfig
                 {
@@ -601,23 +656,25 @@ namespace Vortex.Procedural
                     detailNoise = CreateNoiseLayer(0.07f, 2, 1f, 0.5f, 2f, new Vector3(151f, 173f, 197f)),
                     detailWarpNoise = CreateNoiseLayer(0.02f, 2, 1f, 0.5f, 2f, new Vector3(211f, 223f, 239f))
                 },
-                moonShadingConfig = new MoonShadingConfig
+                moonBiomeConfig = new MoonBiomeConfig
                 {
-                    biomePointCount = 18,
-                    biomeRadiusRange = new Vector2(0.08f, 0.22f),
                     biomeWarpNoise = CreateNoiseLayer(0.015f, 2, 1f, 0.5f, 2f, new Vector3(17f, 37f, 73f)),
-                    detailNoise = CreateNoiseLayer(0.08f, 2, 1f, 0.5f, 2f, new Vector3(101f, 139f, 167f)),
-                    detailWarpNoise = CreateNoiseLayer(0.03f, 2, 1f, 0.5f, 2f, new Vector3(191f, 223f, 251f)),
-                    candidatePoolSize = 0.25f,
-                    desiredEjectaRays = 2,
-                    ejectaRaysScale = 10f
+                    mariaBias = 0.35f,
+                    highlandBias = 0.25f,
+                    colorVariation = 0.2f
                 },
                 moonSurfaceConfig = new MoonSurfaceConfig
                 {
-                    mainTextureScale = 0.012f,
-                    flatSurfaceScale = 0.03f,
-                    steepSurfaceScale = 0.045f,
-                    textureBlendStrength = 0.28f,
+                    mainTextureScale = 0.008f,
+                    flatSurfaceScale = 0.012f,
+                    steepSurfaceScale = 0.018f,
+                    microDetailScale = 0.032f,
+                    textureBlendStrength = 0.46f,
+                    normalBlendStrength = 0.52f,
+                    microDetailStrength = 0.35f,
+                    flatContrast = 1.12f,
+                    steepContrast = 1.06f,
+                    albedoSaturation = 0.85f,
                     ejectaBrightness = 0.14f,
                     steepDarkening = 0.16f
                 }
@@ -752,17 +809,26 @@ namespace Vortex.Procedural
             }
 
             Material material = meshRenderer.sharedMaterial;
-            if (runtimeData.bodyClass == BodyClass.Moon)
+            if (runtimeData.bodyClass == BodyClass.Moon || runtimeData.bodyClass == BodyClass.AsteroidCluster)
             {
                 MoonSurfaceConfig surface = runtimeData.moonSurfaceConfig;
                 if (material.HasProperty("_MoonNoiseTex")) material.SetTexture("_MoonNoiseTex", surface.mainTexture);
                 if (material.HasProperty("_CraterRayTex")) material.SetTexture("_CraterRayTex", surface.craterRayTexture);
                 if (material.HasProperty("_FlatSurfaceTex")) material.SetTexture("_FlatSurfaceTex", surface.flatSurfaceTexture);
                 if (material.HasProperty("_SteepSurfaceTex")) material.SetTexture("_SteepSurfaceTex", surface.steepSurfaceTexture);
-                if (material.HasProperty("_MoonNoiseScale")) material.SetFloat("_MoonNoiseScale", Mathf.Max(0.0001f, surface.mainTextureScale));
-                if (material.HasProperty("_FlatSurfaceScale")) material.SetFloat("_FlatSurfaceScale", Mathf.Max(0.0001f, surface.flatSurfaceScale));
-                if (material.HasProperty("_SteepSurfaceScale")) material.SetFloat("_SteepSurfaceScale", Mathf.Max(0.0001f, surface.steepSurfaceScale));
+                if (material.HasProperty("_FlatNormalTex")) material.SetTexture("_FlatNormalTex", surface.flatNormalMap);
+                if (material.HasProperty("_SteepNormalTex")) material.SetTexture("_SteepNormalTex", surface.steepNormalMap);
+                float radiusScale = 100f / Mathf.Max(1f, runtimeData.radius);
+                if (material.HasProperty("_MoonNoiseScale")) material.SetFloat("_MoonNoiseScale", Mathf.Max(0.0001f, surface.mainTextureScale * radiusScale));
+                if (material.HasProperty("_FlatSurfaceScale")) material.SetFloat("_FlatSurfaceScale", Mathf.Max(0.0001f, surface.flatSurfaceScale * radiusScale));
+                if (material.HasProperty("_SteepSurfaceScale")) material.SetFloat("_SteepSurfaceScale", Mathf.Max(0.0001f, surface.steepSurfaceScale * radiusScale));
+                if (material.HasProperty("_MicroDetailScale")) material.SetFloat("_MicroDetailScale", Mathf.Max(0.0001f, surface.microDetailScale * radiusScale));
                 if (material.HasProperty("_TextureBlendStrength")) material.SetFloat("_TextureBlendStrength", Mathf.Clamp01(surface.textureBlendStrength));
+                if (material.HasProperty("_NormalBlendStrength")) material.SetFloat("_NormalBlendStrength", Mathf.Clamp01(surface.normalBlendStrength));
+                if (material.HasProperty("_MicroDetailStrength")) material.SetFloat("_MicroDetailStrength", Mathf.Clamp01(surface.microDetailStrength));
+                if (material.HasProperty("_FlatContrast")) material.SetFloat("_FlatContrast", Mathf.Clamp(surface.flatContrast, 0.5f, 2.5f));
+                if (material.HasProperty("_SteepContrast")) material.SetFloat("_SteepContrast", Mathf.Clamp(surface.steepContrast, 0.5f, 2.5f));
+                if (material.HasProperty("_AlbedoSaturation")) material.SetFloat("_AlbedoSaturation", Mathf.Clamp(surface.albedoSaturation, 0f, 2f));
                 if (material.HasProperty("_EjectaBrightness")) material.SetFloat("_EjectaBrightness", Mathf.Clamp(surface.ejectaBrightness, 0f, 2f));
                 if (material.HasProperty("_SteepDarkening")) material.SetFloat("_SteepDarkening", Mathf.Clamp01(surface.steepDarkening));
                 if (material.HasProperty("_Glossiness")) material.SetFloat("_Glossiness", 0.2f);
@@ -778,10 +844,17 @@ namespace Vortex.Procedural
 
             if (data.shapeModel == ShapeModel.Moon)
             {
-                maxDisplacement += data.moonShapeConfig.shape.amplitude;
-                maxDisplacement += data.moonShapeConfig.ridgeA.amplitude;
-                maxDisplacement += data.moonShapeConfig.ridgeB.amplitude;
+                maxDisplacement += data.moonTerrainNoiseConfig.macroShape.amplitude * data.moonTerrainNoiseConfig.macroStrength;
+                maxDisplacement += data.moonTerrainNoiseConfig.ridgeNoise.amplitude * data.moonTerrainNoiseConfig.ridgeStrength;
+                maxDisplacement += data.moonTerrainNoiseConfig.detailNoise.amplitude * data.moonTerrainNoiseConfig.detailStrength;
                 maxDisplacement += data.moonShapeConfig.craterDepth * data.radius * 1.5f;
+            }
+            else if (data.shapeModel == ShapeModel.Asteroid)
+            {
+                maxDisplacement += Mathf.Abs(data.asteroidShapeConfig.baseShape.amplitude);
+                maxDisplacement += Mathf.Abs(data.asteroidShapeConfig.detailA.amplitude);
+                maxDisplacement += Mathf.Abs(data.asteroidShapeConfig.detailB.amplitude);
+                maxDisplacement += data.asteroidShapeConfig.pitDepth * data.radius * 1.25f;
             }
             else
             {
@@ -798,7 +871,7 @@ namespace Vortex.Procedural
         {
             string[] shaderNames =
             {
-                runtimeDataReady && runtimeData.bodyClass == BodyClass.Moon ? "Vortex/DynamicMoonSurface" : null,
+                runtimeDataReady && (runtimeData.bodyClass == BodyClass.Moon || runtimeData.bodyClass == BodyClass.AsteroidCluster) ? "Vortex/DynamicMoonSurface" : null,
                 "HDRP/Lit",
                 "Universal Render Pipeline/Lit",
                 "Standard",

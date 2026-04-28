@@ -19,7 +19,8 @@ namespace Vortex.Procedural.Editor
             DrawSection("Structural Simulation", "corePressureSupport", "fractureThreshold", "collapseThreshold", "novaThreshold", "structuralDamping");
             DrawSection("Mesh Deformation", "enableMeshNodeDeformation", "meshTidalStartThreshold", "meshTidalMaxThreshold", "meshAxialStretchAtFull", "meshRadialSqueezeAtFull");
             DrawSection("Moon Shape", "baseShapeConfig", "moonShapeConfig");
-            DrawSection("Moon Shading", "moonShadingConfig", "biomeColorCurves", "emissiveRange");
+            DrawSection("Moon Terrain Noise", "moonTerrainNoiseConfig");
+            DrawSection("Moon Biome", "moonBiomeConfig", "biomeColorCurves", "emissiveRange");
             DrawSection("Moon Surface", "moonSurfaceConfig");
 
             serializedObject.ApplyModifiedProperties();

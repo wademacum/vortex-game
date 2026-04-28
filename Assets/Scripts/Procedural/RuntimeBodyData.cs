@@ -39,8 +39,11 @@ namespace Vortex.Procedural
         public BaseShapeConfig baseShapeConfig;
         public PlanetShapeConfig planetShapeConfig;
         public MoonShapeConfig moonShapeConfig;
+        public MoonTerrainNoiseConfig moonTerrainNoiseConfig;
+        public AsteroidShapeConfig asteroidShapeConfig;
+        public AsteroidShadingConfig asteroidShadingConfig;
         public PlanetShadingConfig planetShadingConfig;
-        public MoonShadingConfig moonShadingConfig;
+        public MoonBiomeConfig moonBiomeConfig;
         public MoonSurfaceConfig moonSurfaceConfig;
         public Gradient[] biomeColorCurves;
         public Vector2 emissiveRange;

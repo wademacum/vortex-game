@@ -295,11 +295,11 @@ namespace Vortex.Procedural
 
             if (bodyData.shadingModel == ShadingModel.MoonBiomes)
             {
-                float biomeNoise = SampleLayer(bodyData.moonShadingConfig.biomeWarpNoise, position);
-                float detailNoise = SampleLayer(bodyData.moonShadingConfig.detailNoise, position);
-                float ejecta = SampleRadialNoise(position, 8f);
+                float biomeNoise = SampleLayer(bodyData.moonBiomeConfig.biomeWarpNoise, position);
+                float detailNoise = SampleLayer(bodyData.moonTerrainNoiseConfig.detailNoise, position);
+                float ejecta = SampleRadialNoise(position, 8f) > (1f - bodyData.moonShapeConfig.youngCraterFraction) ? 1f : 0f;
                 dataA = new Vector4(biomeNoise, ejecta, detailNoise, normalizedHeight);
-                dataB = new Vector4(slope, SampleLayer(bodyData.moonShapeConfig.ridgeA, position), 0f, 0f);
+                dataB = new Vector4(slope, SampleLayer(bodyData.moonTerrainNoiseConfig.ridgeNoise, position), 0f, 0f);
                 color = EvaluateMoonColor(dataA, slope);
                 return;
             }

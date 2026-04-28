@@ -165,13 +165,11 @@ namespace Vortex.Procedural
                 return true;
             }
 
-            /*
             if (template is AsteroidClusterTemplate asteroid)
             {
                 RandomizeAsteroid(asteroid, rng);
                 return true;
             }
-            */
 
             return false;
         }
@@ -213,15 +211,15 @@ namespace Vortex.Procedural
             bool minorDeformation = rng.NextDouble() <= 0.8;
             if (minorDeformation)
             {
-                template.moonShapeConfig.shape = CreateNoise(rng, 1.5f, 2.5f, 0.35f, 2.5f, 4, 4);
+                template.moonTerrainNoiseConfig.macroShape = CreateNoise(rng, 0.018f, 0.03f, 3f, 7f, 4, 4);
             }
             else
             {
-                template.moonShapeConfig.shape = CreateNoise(rng, 0.35f, 1.05f, 2.5f, 6f, 4, 4);
+                template.moonTerrainNoiseConfig.macroShape = CreateNoise(rng, 0.012f, 0.025f, 4f, 9f, 4, 4);
             }
 
-            template.moonShapeConfig.ridgeA = CreateNoise(rng, 1f, 2.4f, 0.45f, 2.2f, 4, 4, ridgeLike: true);
-            template.moonShapeConfig.ridgeB = CreateNoise(rng, 0.5f, 1.4f, 0.2f, 0.8f, 4, 4);
+            template.moonTerrainNoiseConfig.ridgeNoise = CreateNoise(rng, 0.02f, 0.05f, 2f, 5f, 4, 4, ridgeLike: true);
+            template.moonTerrainNoiseConfig.detailNoise = CreateNoise(rng, 0.05f, 0.12f, 0.8f, 3f, 4, 4);
 
             double craterMode = rng.NextDouble();
             if (craterMode <= 0.7)
@@ -240,69 +238,106 @@ namespace Vortex.Procedural
                 template.moonShapeConfig.craterRadiusRange = new Vector2(0.02f, 0.16f);
             }
 
-            template.moonShapeConfig.craterDepth = RandomRange(rng, 0.018f, 0.05f);
-            template.moonShapeConfig.craterRimSharpness = RandomRange(rng, 1.4f, 2.8f);
-            template.moonShapeConfig.craterNoiseScale = RandomRange(rng, 0.9f, 2.4f);
+            template.moonShapeConfig.craterDepth = RandomRange(rng, 0.026f, 0.056f);
+            template.moonShapeConfig.craterRadiusBias = RandomRange(rng, 0.4f, 0.9f);
+            template.moonShapeConfig.craterFloorHeightRange = new Vector2(RandomRange(rng, 0.62f, 0.74f), RandomRange(rng, 0.82f, 0.96f));
+            template.moonShapeConfig.craterFloorRadius = RandomRange(rng, 0.28f, 0.48f);
+            template.moonShapeConfig.craterWallSmoothness = RandomRange(rng, 0.3f, 0.7f);
+            template.moonShapeConfig.craterRimWidth = RandomRange(rng, 0.1f, 0.24f);
+            template.moonShapeConfig.craterRimHeight = RandomRange(rng, 0.12f, 0.3f);
+            template.moonShapeConfig.craterRimSharpness = RandomRange(rng, 0.65f, 1.25f);
+            template.moonShapeConfig.craterEdgeWarpFrequency = RandomRange(rng, 0.8f, 2.2f);
+            template.moonShapeConfig.craterEdgeWarpStrength = RandomRange(rng, 0.02f, 0.09f);
+            template.moonShapeConfig.craterCrowdingRadiusScale = RandomRange(rng, 0.62f, 0.84f);
+            template.moonShapeConfig.craterDistributionJitter = RandomRange(rng, 0.2f, 0.5f);
+            template.moonShapeConfig.youngCraterFraction = RandomRange(rng, 0.05f, 0.22f);
 
-            template.moonShadingConfig.biomePointCount = RandomRangeInt(rng, 10, 42);
-            template.moonShadingConfig.biomeRadiusRange = new Vector2(RandomRange(rng, 0.04f, 0.1f), RandomRange(rng, 0.12f, 0.28f));
-            template.moonShadingConfig.biomeWarpNoise = CreateNoise(rng, 0.008f, 0.025f, 0.5f, 1.3f, 2, 3);
-            template.moonShadingConfig.detailNoise = CreateNoise(rng, 0.04f, 0.11f, 0.5f, 1.2f, 2, 3);
-            template.moonShadingConfig.detailWarpNoise = CreateNoise(rng, 0.015f, 0.04f, 0.4f, 1.2f, 2, 3);
-            template.moonShadingConfig.candidatePoolSize = RandomRange(rng, 0.15f, 0.45f);
-            template.moonShadingConfig.desiredEjectaRays = RandomRangeInt(rng, 1, 4);
-            template.moonShadingConfig.ejectaRaysScale = RandomRange(rng, 6f, 16f);
+            template.moonTerrainNoiseConfig.macroShape = CreateNoise(rng, 0.012f, 0.03f, 3f, 8f, 3, 5);
+            template.moonTerrainNoiseConfig.ridgeNoise = CreateNoise(rng, 0.02f, 0.05f, 2f, 5f, 3, 5, ridgeLike: true);
+            template.moonTerrainNoiseConfig.detailNoise = CreateNoise(rng, 0.05f, 0.12f, 0.8f, 3f, 2, 4);
+            template.moonTerrainNoiseConfig.warpNoise = CreateNoise(rng, 0.02f, 0.06f, 0.5f, 1.5f, 2, 3);
+            template.moonTerrainNoiseConfig.warpStrength = RandomRange(rng, 0.25f, 0.9f);
+            template.moonTerrainNoiseConfig.macroStrength = RandomRange(rng, 0.1f, 0.2f);
+            template.moonTerrainNoiseConfig.ridgeStrength = RandomRange(rng, 0.04f, 0.1f);
+            template.moonTerrainNoiseConfig.detailStrength = RandomRange(rng, 0.01f, 0.04f);
 
-            template.moonSurfaceConfig.mainTextureScale = RandomRange(rng, 0.006f, 0.02f);
-            template.moonSurfaceConfig.flatSurfaceScale = RandomRange(rng, 0.018f, 0.045f);
-            template.moonSurfaceConfig.steepSurfaceScale = RandomRange(rng, 0.025f, 0.065f);
-            template.moonSurfaceConfig.textureBlendStrength = RandomRange(rng, 0.18f, 0.42f);
+            template.moonBiomeConfig.biomeWarpNoise = CreateNoise(rng, 0.008f, 0.025f, 0.5f, 1.3f, 2, 3);
+            template.moonBiomeConfig.mariaBias = RandomRange(rng, 0.2f, 0.55f);
+            template.moonBiomeConfig.highlandBias = RandomRange(rng, 0.15f, 0.45f);
+            template.moonBiomeConfig.colorVariation = RandomRange(rng, 0.08f, 0.3f);
+
+            template.moonSurfaceConfig.mainTextureScale = RandomRange(rng, 0.004f, 0.012f);
+            template.moonSurfaceConfig.flatSurfaceScale = RandomRange(rng, 0.006f, 0.018f);
+            template.moonSurfaceConfig.steepSurfaceScale = RandomRange(rng, 0.01f, 0.026f);
+            template.moonSurfaceConfig.microDetailScale = RandomRange(rng, 0.02f, 0.05f);
+            template.moonSurfaceConfig.textureBlendStrength = RandomRange(rng, 0.36f, 0.58f);
+            template.moonSurfaceConfig.normalBlendStrength = RandomRange(rng, 0.35f, 0.8f);
+            template.moonSurfaceConfig.microDetailStrength = RandomRange(rng, 0.2f, 0.55f);
+            template.moonSurfaceConfig.flatContrast = RandomRange(rng, 1.02f, 1.22f);
+            template.moonSurfaceConfig.steepContrast = RandomRange(rng, 1.0f, 1.16f);
+            template.moonSurfaceConfig.albedoSaturation = RandomRange(rng, 0.82f, 1.08f);
             template.moonSurfaceConfig.ejectaBrightness = RandomRange(rng, 0.08f, 0.25f);
             template.moonSurfaceConfig.steepDarkening = RandomRange(rng, 0.08f, 0.24f);
 
-            template.noiseLayerConfig.continent = template.moonShapeConfig.shape;
-            template.noiseLayerConfig.mountain = template.moonShapeConfig.ridgeA;
-            template.noiseLayerConfig.detail = template.moonShapeConfig.ridgeB;
+            template.noiseLayerConfig.continent = template.moonTerrainNoiseConfig.macroShape;
+            template.noiseLayerConfig.mountain = template.moonTerrainNoiseConfig.ridgeNoise;
+            template.noiseLayerConfig.detail = template.moonTerrainNoiseConfig.detailNoise;
 
             EnsureMoonRanges(template, rng);
             EnsureMoonGradients(template, rng);
         }
 
-        
+        private static void RandomizeAsteroid(AsteroidClusterTemplate template, System.Random rng)
+        {
+            template.baseShapeConfig.commonOffset = RandomVector3(rng, -1.2f, 1.2f);
+            template.baseShapeConfig.radiusBias = RandomRange(rng, -0.06f, 0.08f);
+            template.baseShapeConfig.verticalSquash = RandomRange(rng, 0.72f, 1.25f);
 
-        /*
+            template.asteroidShapeConfig.baseShape = CreateNoise(rng, 0.016f, 0.04f, 3f, 9f, 3, 5);
+            template.asteroidShapeConfig.detailA = CreateNoise(rng, 0.04f, 0.08f, 1.5f, 4.5f, 3, 4, ridgeLike: true);
+            template.asteroidShapeConfig.detailB = CreateNoise(rng, 0.08f, 0.16f, 0.8f, 2.2f, 2, 3);
+            template.asteroidShapeConfig.pitCount = RandomRangeInt(rng, 14, 68);
+            template.asteroidShapeConfig.pitRadiusRange = new Vector2(RandomRange(rng, 0.015f, 0.03f), RandomRange(rng, 0.07f, 0.14f));
+            template.asteroidShapeConfig.pitDepth = RandomRange(rng, 0.018f, 0.04f);
+            template.asteroidShapeConfig.pitRimSharpness = RandomRange(rng, 0.5f, 0.95f);
+            template.asteroidShapeConfig.surfaceIrregularity = RandomRange(rng, 0.24f, 0.52f);
+
+            template.moonBiomeConfig.biomeWarpNoise = CreateNoise(rng, 0.008f, 0.02f, 0.5f, 1.2f, 2, 3);
+            template.moonBiomeConfig.mariaBias = RandomRange(rng, 0.2f, 0.5f);
+            template.moonBiomeConfig.highlandBias = RandomRange(rng, 0.15f, 0.45f);
+            template.moonBiomeConfig.colorVariation = RandomRange(rng, 0.06f, 0.22f);
+
+            template.moonSurfaceConfig.mainTextureScale = RandomRange(rng, 0.006f, 0.014f);
+            template.moonSurfaceConfig.flatSurfaceScale = RandomRange(rng, 0.008f, 0.02f);
+            template.moonSurfaceConfig.steepSurfaceScale = RandomRange(rng, 0.012f, 0.03f);
+            template.moonSurfaceConfig.microDetailScale = RandomRange(rng, 0.022f, 0.06f);
+            template.moonSurfaceConfig.textureBlendStrength = RandomRange(rng, 0.4f, 0.62f);
+            template.moonSurfaceConfig.normalBlendStrength = RandomRange(rng, 0.35f, 0.75f);
+            template.moonSurfaceConfig.microDetailStrength = RandomRange(rng, 0.22f, 0.58f);
+            template.moonSurfaceConfig.flatContrast = RandomRange(rng, 1.02f, 1.25f);
+            template.moonSurfaceConfig.steepContrast = RandomRange(rng, 1.0f, 1.2f);
+            template.moonSurfaceConfig.albedoSaturation = RandomRange(rng, 0.72f, 0.98f);
+            template.moonSurfaceConfig.ejectaBrightness = RandomRange(rng, 0.04f, 0.16f);
+            template.moonSurfaceConfig.steepDarkening = RandomRange(rng, 0.1f, 0.28f);
+
+            template.noiseLayerConfig.continent = template.asteroidShapeConfig.baseShape;
+            template.noiseLayerConfig.mountain = template.asteroidShapeConfig.detailA;
+            template.noiseLayerConfig.detail = template.asteroidShapeConfig.detailB;
+
+            EnsureAsteroidRanges(template, rng);
+            EnsureAsteroidGradients(template, rng);
+        }
+
         private static void EnsureAsteroidRanges(AsteroidClusterTemplate template, System.Random rng)
         {
-            if (template.massRange == Vector2.zero)
-            {
-                float minMass = RandomRange(rng, 180f, 800f);
-                float maxMass = RandomRange(rng, 900f, 2400f);
-                template.massRange = new Vector2(minMass, maxMass);
-            }
-            if (template.radiusRange == Vector2.zero)
-            {
-                template.radiusRange = new Vector2(RandomRange(rng, 6f, 12f), RandomRange(rng, 14f, 28f));
-            }
-            if (template.densityRange == Vector2.zero)
-            {
-                template.densityRange = new Vector2(2.0f, 4.8f);
-            }
-            if (template.rotationRange == Vector2.zero)
-            {
-                template.rotationRange = new Vector2(0.05f, 2.2f);
-            }
-            if (template.temperatureRange == Vector2.zero)
-            {
-                template.temperatureRange = new Vector2(RandomRange(rng, 40f, 120f), RandomRange(rng, 120f, 250f));
-            }
-            if (template.albedoRange == Vector2.zero)
-            {
-                template.albedoRange = new Vector2(0.05f, 0.35f);
-            }
+            template.massRange = new Vector2(RandomRange(rng, 180f, 700f), RandomRange(rng, 900f, 3200f));
+            template.radiusRange = new Vector2(RandomRange(rng, 16f, 42f), RandomRange(rng, 48f, 86f));
+            template.densityRange = new Vector2(1.6f, 4.4f);
+            template.rotationRange = new Vector2(0.08f, 3.4f);
+            template.temperatureRange = new Vector2(RandomRange(rng, 40f, 120f), RandomRange(rng, 130f, 280f));
+            template.albedoRange = new Vector2(0.05f, 0.32f);
         }
-        */
 
-        /*
         private static void EnsureAsteroidGradients(AsteroidClusterTemplate template, System.Random rng)
         {
             Color dark = Color.HSVToRGB(RandomRange(rng, 0f, 0.1f), RandomRange(rng, 0f, 0.2f), RandomRange(rng, 0.1f, 0.25f));
@@ -314,7 +349,6 @@ namespace Vortex.Procedural
                 CelestialBodyTemplate.CreateGradient(mid, bright)
             };
         }
-        */
 
         private static void EnsurePlanetRanges(PlanetTemplate template, System.Random rng)
         {

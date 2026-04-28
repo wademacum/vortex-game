@@ -13,6 +13,10 @@ namespace Vortex.Physics
         [SerializeField] private Vector3 sphericalPosition;
         [SerializeField] private Vector4 fourVelocity;
 
+        [Header("Intrinsic Spin")]
+        [SerializeField] private Vector3 intrinsicSpinAxis = Vector3.up;
+        [SerializeField, Min(0f)] private float intrinsicSpinDegPerSec;
+
         [Header("Mass")]
         [SerializeField, Min(0.001f)] private float inertialMass = 1f;
         [SerializeField, Min(0f)] private float gravitationalMass = 1f;
@@ -68,6 +72,7 @@ namespace Vortex.Physics
             get => angularVelocityDegPerSec;
             set => angularVelocityDegPerSec = value;
         }
+        public Vector3 IntrinsicAngularVelocityDegPerSec => ResolveIntrinsicSpinAxis() * intrinsicSpinDegPerSec;
 
         private void Awake()
         {
@@ -85,6 +90,8 @@ namespace Vortex.Physics
             properTime = Mathf.Clamp01(properTime);
             inertialMass = Mathf.Max(0.001f, inertialMass);
             gravitationalMass = Mathf.Max(0f, gravitationalMass);
+            intrinsicSpinAxis = ResolveIntrinsicSpinAxis();
+            intrinsicSpinDegPerSec = Mathf.Max(0f, intrinsicSpinDegPerSec);
             collisionSpinScale = Mathf.Max(0f, collisionSpinScale);
             collisionSpinImpulseScale = Mathf.Max(0f, collisionSpinImpulseScale);
             angularDampingPerFixedStep = Mathf.Clamp01(angularDampingPerFixedStep);
@@ -174,6 +181,12 @@ namespace Vortex.Physics
             angularVelocityDegPerSec = value;
         }
 
+        public void ConfigureIntrinsicSpin(float spinDegPerSec, Vector3 axis)
+        {
+            intrinsicSpinDegPerSec = Mathf.Max(0f, spinDegPerSec);
+            intrinsicSpinAxis = axis.sqrMagnitude > PhysicsConstants.IntegrationEpsilon ? axis.normalized : Vector3.up;
+        }
+
         public void SetPhysicsState(Vector3 position, Quaternion rotation, Vector4 nextFourVelocity)
         {
             previousPhysicsPosition = currentPhysicsPosition;
@@ -239,6 +252,11 @@ namespace Vortex.Physics
             currentPhysicsPosition = transform.position;
             previousPhysicsRotation = transform.rotation;
             currentPhysicsRotation = transform.rotation;
+        }
+
+        private Vector3 ResolveIntrinsicSpinAxis()
+        {
+            return intrinsicSpinAxis.sqrMagnitude > PhysicsConstants.IntegrationEpsilon ? intrinsicSpinAxis.normalized : Vector3.up;
         }
 
         private static Vector3 CartesianToSpherical(Vector3 p)

@@ -1,5 +1,6 @@
 #pragma kernel CSPlanetVoxel
 #pragma kernel CSMoonVoxel
+#pragma kernel CSAsteroidVoxel
 
 RWStructuredBuffer<float> _SdfOutput;
 
@@ -81,11 +82,60 @@ float _MoonRidgeBPersistence;
 float _MoonRidgeBLacunarity;
 float3 _MoonRidgeBOffset;
 
+float _MoonWarpScale;
+int _MoonWarpOctaves;
+float _MoonWarpAmplitude;
+float _MoonWarpPersistence;
+float _MoonWarpLacunarity;
+float3 _MoonWarpOffset;
+
+float _MoonWarpStrength;
+float _MoonMacroStrength;
+float _MoonRidgeStrength;
+float _MoonDetailStrength;
+
 int _MoonCraterCount;
 float2 _MoonCraterRadiusRange;
+float _MoonCraterRadiusBias;
 float _MoonCraterDepth;
+float2 _MoonCraterFloorHeightRange;
+float _MoonCraterFloorRadius;
+float _MoonCraterWallSmoothness;
+float _MoonCraterRimWidth;
+float _MoonCraterRimHeight;
 float _MoonCraterRimSharpness;
-float _MoonCraterNoiseScale;
+float _MoonCraterEdgeWarpFrequency;
+float _MoonCraterEdgeWarpStrength;
+float _MoonCraterCrowdingRadiusScale;
+float _MoonCraterDistributionJitter;
+float _MoonYoungCraterFraction;
+
+float _AsteroidBaseShapeScale;
+int _AsteroidBaseShapeOctaves;
+float _AsteroidBaseShapeAmplitude;
+float _AsteroidBaseShapePersistence;
+float _AsteroidBaseShapeLacunarity;
+float3 _AsteroidBaseShapeOffset;
+
+float _AsteroidDetailAScale;
+int _AsteroidDetailAOctaves;
+float _AsteroidDetailAAmplitude;
+float _AsteroidDetailAPersistence;
+float _AsteroidDetailALacunarity;
+float3 _AsteroidDetailAOffset;
+
+float _AsteroidDetailBScale;
+int _AsteroidDetailBOctaves;
+float _AsteroidDetailBAmplitude;
+float _AsteroidDetailBPersistence;
+float _AsteroidDetailBLacunarity;
+float3 _AsteroidDetailBOffset;
+
+int _AsteroidPitCount;
+float2 _AsteroidPitRadiusRange;
+float _AsteroidPitDepth;
+float _AsteroidPitRimSharpness;
+float _AsteroidSurfaceIrregularity;
 
 uint Hash(uint x)
 {
@@ -106,6 +156,20 @@ float3 HashDirection(uint seed)
 {
     float z = HashToUnitFloat(seed * 2654435761u) * 2.0 - 1.0;
     float angle = HashToUnitFloat(seed * 2246822519u) * 6.2831853;
+    float r = sqrt(saturate(1.0 - z * z));
+    return float3(cos(angle) * r, sin(angle) * r, z);
+}
+
+float3 FibonacciDirection(int index, int count, uint seed)
+{
+    float countSafe = max((float)count, 1.0);
+    float jitterAmount = saturate(_MoonCraterDistributionJitter);
+    float jitter = (HashToUnitFloat(seed + 101u) - 0.5) * jitterAmount;
+    float z = 1.0 - 2.0 * (((float)index + 0.5 + jitter) / countSafe);
+    z = clamp(z, -1.0, 1.0);
+
+    float goldenAngle = 2.39996323;
+    float angle = ((float)index + HashToUnitFloat(seed + 211u) * 0.45) * goldenAngle + HashToUnitFloat(seed + 307u) * 6.2831853;
     float r = sqrt(saturate(1.0 - z * z));
     return float3(cos(angle) * r, sin(angle) * r, z);
 }
@@ -259,35 +323,42 @@ float EvaluatePlanetDisplacement(float3 localPos)
 float EvaluateMoonCraters(float3 surfaceDir)
 {
     float craterContribution = 0.0;
-    float craterWarpFrequency = max(_MoonCraterNoiseScale, 0.001) * 2.0;
+    float craterWarpFrequency = max(_MoonCraterEdgeWarpFrequency, 0.001);
 
     [loop]
     for (int i = 0; i < _MoonCraterCount; i++)
     {
         uint seed = (uint)(i + 1) * 9781u;
-        float3 centerDir = HashDirection(seed);
-        float radius = lerp(_MoonCraterRadiusRange.x, _MoonCraterRadiusRange.y, HashToUnitFloat(seed + 17u));
+        float3 centerDir = FibonacciDirection(i, _MoonCraterCount, seed);
+        float crowdingScale = lerp(1.0, saturate(_MoonCraterCrowdingRadiusScale), saturate(((float)_MoonCraterCount - 120.0) / 260.0));
+        float radiusT = pow(HashToUnitFloat(seed + 17u), 1.0 + saturate(_MoonCraterRadiusBias) * 3.0);
+        float radius = lerp(_MoonCraterRadiusRange.x, _MoonCraterRadiusRange.y, radiusT) * crowdingScale;
         float depth = (_MoonCraterDepth * _BaseRadius) * lerp(0.65, 1.2, HashToUnitFloat(seed + 41u));
         float angular = acos(saturate(dot(surfaceDir, centerDir))) / 3.14159265;
         float craterDist = angular / max(radius, 0.001);
         float edgeWarp = ValueNoise3D(surfaceDir * craterWarpFrequency + centerDir * 11.0 + float3(seed * 0.001, seed * 0.002, seed * 0.003));
-        craterDist *= 1.0 + edgeWarp * 0.05;
+        craterDist *= 1.0 + edgeWarp * _MoonCraterEdgeWarpStrength;
 
-        float bowl = saturate(1.0 - craterDist);
-        bowl = pow(bowl, max(_MoonCraterRimSharpness * 0.85, 0.01));
+        float floorRadius = saturate(_MoonCraterFloorRadius);
+        float wallStart = floorRadius + max(0.02, _MoonCraterWallSmoothness * 0.2);
+        float rimCenter = 0.94;
+        float rimHalfWidth = max(0.05, _MoonCraterRimWidth);
 
-        float floorMask = saturate(1.0 - craterDist / 0.72);
-        floorMask = pow(floorMask, 0.6);
+        float floorMask = 1.0 - smoothstep(floorRadius, wallStart, craterDist);
+        float wallFalloff = 1.0 - smoothstep(wallStart, rimCenter, craterDist);
+        wallFalloff = pow(saturate(wallFalloff), max(_MoonCraterRimSharpness * 0.45, 0.01));
 
-        float rim = saturate(1.0 - abs(craterDist - 0.92) / 0.14);
-        rim = pow(rim, max(_MoonCraterRimSharpness * 0.75, 0.01));
+        float rim = saturate(1.0 - abs(craterDist - rimCenter) / rimHalfWidth);
+        rim = smoothstep(0.0, 1.0, rim);
+        rim = pow(rim, max(_MoonCraterRimSharpness * 0.42, 0.01));
 
         float ejecta = saturate(1.0 - abs(craterDist - 1.18) / 0.28);
         ejecta = pow(ejecta, 2.2);
 
-        craterContribution -= bowl * depth;
-        craterContribution += floorMask * depth * 0.12;
-        craterContribution += rim * depth * 0.28;
+        float floorDepth = lerp(_MoonCraterFloorHeightRange.x, _MoonCraterFloorHeightRange.y, HashToUnitFloat(seed + 59u));
+        float craterCut = floorDepth * max(floorMask, wallFalloff);
+        craterContribution -= craterCut * depth;
+        craterContribution += rim * depth * _MoonCraterRimHeight;
         craterContribution += ejecta * depth * 0.03;
     }
 
@@ -297,12 +368,42 @@ float EvaluateMoonCraters(float3 surfaceDir)
 float EvaluateMoonDisplacement(float3 localPos)
 {
     float3 surfaceDir = SafeNormalize(localPos);
+    float warpSample = Fbm(surfaceDir + _MoonWarpOffset, _MoonWarpScale, _MoonWarpOctaves, _MoonWarpAmplitude, _MoonWarpPersistence, _MoonWarpLacunarity);
+    float3 warpedDir = SafeNormalize(surfaceDir + warpSample * _MoonWarpStrength);
     float craterDepth = EvaluateMoonCraters(surfaceDir);
-    float shapeNoise = Fbm(surfaceDir + _MoonShapeOffset, _MoonShapeScale, _MoonShapeOctaves, _MoonShapeAmplitude, _MoonShapePersistence, _MoonShapeLacunarity);
-    float ridgeNoise = RidgeFbm(surfaceDir + _MoonRidgeAOffset, _MoonRidgeAScale, _MoonRidgeAOctaves, _MoonRidgeAAmplitude, _MoonRidgeAPersistence, _MoonRidgeALacunarity);
-    float ridgeMask = saturate(Fbm(surfaceDir + _MoonRidgeBOffset, _MoonRidgeBScale, _MoonRidgeBOctaves, _MoonRidgeBAmplitude, _MoonRidgeBPersistence, _MoonRidgeBLacunarity) * 0.5 + 0.5);
-    float noiseSum = shapeNoise * 0.14 + ridgeNoise * ridgeMask * 0.06 + ridgeMask * (_MoonRidgeBAmplitude * 0.02);
+    float shapeNoise = Fbm(warpedDir + _MoonShapeOffset, _MoonShapeScale, _MoonShapeOctaves, _MoonShapeAmplitude, _MoonShapePersistence, _MoonShapeLacunarity);
+    float ridgeNoise = RidgeFbm(warpedDir + _MoonRidgeAOffset, _MoonRidgeAScale, _MoonRidgeAOctaves, _MoonRidgeAAmplitude, _MoonRidgeAPersistence, _MoonRidgeALacunarity);
+    float detailNoise = Fbm(warpedDir + _MoonRidgeBOffset, _MoonRidgeBScale, _MoonRidgeBOctaves, _MoonRidgeBAmplitude, _MoonRidgeBPersistence, _MoonRidgeBLacunarity);
+    float noiseSum = shapeNoise * _MoonMacroStrength + ridgeNoise * _MoonRidgeStrength + detailNoise * _MoonDetailStrength;
     return craterDepth + noiseSum;
+}
+
+float EvaluateAsteroidDisplacement(float3 localPos)
+{
+    float3 dir = SafeNormalize(localPos);
+    float baseNoise = Fbm(dir + _AsteroidBaseShapeOffset, _AsteroidBaseShapeScale, _AsteroidBaseShapeOctaves, _AsteroidBaseShapeAmplitude, _AsteroidBaseShapePersistence, _AsteroidBaseShapeLacunarity);
+    float detailA = RidgeFbm(dir + _AsteroidDetailAOffset, _AsteroidDetailAScale, _AsteroidDetailAOctaves, _AsteroidDetailAAmplitude, _AsteroidDetailAPersistence, _AsteroidDetailALacunarity);
+    float detailB = Fbm(dir + _AsteroidDetailBOffset, _AsteroidDetailBScale, _AsteroidDetailBOctaves, _AsteroidDetailBAmplitude, _AsteroidDetailBPersistence, _AsteroidDetailBLacunarity);
+
+    float irregular = (baseNoise * 1.0 + detailA * 0.8 + detailB * 0.65) * max(_AsteroidSurfaceIrregularity, 0.0);
+    float pits = 0.0;
+
+    [loop]
+    for (int i = 0; i < _AsteroidPitCount; i++)
+    {
+        uint seed = (uint)(i + 1) * 16127u;
+        float3 pitDir = FibonacciDirection(i, _AsteroidPitCount, seed + 13u);
+        float radiusT = HashToUnitFloat(seed + 31u);
+        float pitRadius = lerp(_AsteroidPitRadiusRange.x, _AsteroidPitRadiusRange.y, radiusT);
+        float pitAngle = acos(saturate(dot(dir, pitDir))) / 3.14159265;
+        float d = pitAngle / max(pitRadius, 0.001);
+        float bowl = 1.0 - smoothstep(0.0, 1.0, d);
+        float rim = saturate(1.0 - abs(d - 1.0) / 0.22);
+        rim = pow(rim, max(_AsteroidPitRimSharpness, 0.01));
+        pits += (-bowl + rim * 0.18) * (_AsteroidPitDepth * _BaseRadius);
+    }
+
+    return irregular + pits;
 }
 
 float ApplyComposeCommand(float currentSdf, float3 localPos, SdfComposeCommand command)
@@ -377,5 +478,19 @@ void CSMoonVoxel(uint3 id : SV_DispatchThreadID)
     uint index = id.x + (uint)_GridResolution * (id.y + (uint)_GridResolution * id.z);
     float3 localPos = ResolveLocalPos(id);
     float sdf = EvaluateBaseBodySdf(localPos) - EvaluateMoonDisplacement(localPos);
+    _SdfOutput[index] = ComposeScene(sdf, localPos);
+}
+
+[numthreads(8, 8, 8)]
+void CSAsteroidVoxel(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)_GridResolution || id.y >= (uint)_GridResolution || id.z >= (uint)_GridResolution)
+    {
+        return;
+    }
+
+    uint index = id.x + (uint)_GridResolution * (id.y + (uint)_GridResolution * id.z);
+    float3 localPos = ResolveLocalPos(id);
+    float sdf = EvaluateBaseBodySdf(localPos) - EvaluateAsteroidDisplacement(localPos);
     _SdfOutput[index] = ComposeScene(sdf, localPos);
 }

@@ -12,6 +12,7 @@ namespace Vortex.Physics
         [SerializeField] private bool pauseSimulationWhenUnfocused = true;
         [SerializeField] private bool pauseSimulationWhenUnfocusedInEditor = false;
         [SerializeField, Min(0)] private int settleFixedStepsAfterFocusReturn = 2;
+        [SerializeField, Min(0.01f)] private float simulationTimeScale = PhysicsConstants.DefaultSimulationTimeScale;
 
         private bool hasFocus = true;
         private int focusSettleStepsRemaining;
@@ -43,7 +44,7 @@ namespace Vortex.Physics
             }
 
             IReadOnlyList<GravityWell> wells = GravityWellRegistry.GetAll();
-            float dt = Time.fixedUnscaledDeltaTime;
+            float dt = Time.fixedUnscaledDeltaTime * Mathf.Max(0.01f, simulationTimeScale);
 
             int bodyCount = bodies.Count;
             if (bodyCount == 0)
@@ -73,6 +74,7 @@ namespace Vortex.Physics
                     rotation = body.PhysicsRotation,
                     velocity = new Unity.Mathematics.float3(fourVelocity.x, fourVelocity.y, fourVelocity.z),
                     angularVelocityDegPerSec = body.AngularVelocityDegPerSec,
+                    intrinsicAngularVelocityDegPerSec = body.IntrinsicAngularVelocityDegPerSec,
                     properTime = body.ProperTime,
                     inertialMass = body.InertialMass,
                     gravitationalMass = body.GravitationalMass,

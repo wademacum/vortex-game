@@ -12,6 +12,7 @@ namespace Vortex.Physics
         public quaternion rotation;
         public float3 velocity;
         public float3 angularVelocityDegPerSec;
+        public float3 intrinsicAngularVelocityDegPerSec;
         public float properTime;
         public float inertialMass;
         public float gravitationalMass;
@@ -80,10 +81,11 @@ namespace Vortex.Physics
             float3 position = state.position;
             quaternion rotation = state.rotation;
             float3 angularVelocity = state.angularVelocityDegPerSec;
+            float3 intrinsicAngularVelocity = state.intrinsicAngularVelocityDegPerSec;
 
             for (int step = 0; step < substepCount; step++)
             {
-                IntegrateRk4(index, ref position, ref velocity, ref rotation, ref angularVelocity, substepDt);
+                IntegrateRk4(index, ref position, ref velocity, ref rotation, ref angularVelocity, intrinsicAngularVelocity, substepDt);
             }
 
             float hardSpeed = PhysicsConstants.HardSpeedLimitRatio * PhysicsConstants.SpeedOfLight;
@@ -100,7 +102,7 @@ namespace Vortex.Physics
             nextStates[index] = state;
         }
 
-        private void IntegrateRk4(int bodyIndex, ref float3 position, ref float3 velocity, ref quaternion rotation, ref float3 angularVelocity, float dt)
+        private void IntegrateRk4(int bodyIndex, ref float3 position, ref float3 velocity, ref quaternion rotation, ref float3 angularVelocity, float3 intrinsicAngularVelocity, float dt)
         {
             float3 p0 = position;
             float3 v0 = velocity;
@@ -124,10 +126,11 @@ namespace Vortex.Physics
             float3 nextVelocity = v0 + (k1v + 2f * k2v + 2f * k3v + k4v) / 6f;
             float3 nextPosition = p0 + (k1p + 2f * k2p + 2f * k3p + k4p) / 6f;
 
-            if (math.lengthsq(angularVelocity) > PhysicsConstants.IntegrationEpsilon)
+            float3 totalAngularVelocity = angularVelocity + intrinsicAngularVelocity;
+            if (math.lengthsq(totalAngularVelocity) > PhysicsConstants.IntegrationEpsilon)
             {
-                float stepDegrees = math.length(angularVelocity) * dt;
-                float3 axis = math.normalize(angularVelocity);
+                float stepDegrees = math.length(totalAngularVelocity) * dt;
+                float3 axis = math.normalize(totalAngularVelocity);
                 quaternion dq = quaternion.AxisAngle(axis, math.radians(stepDegrees));
                 rotation = math.normalize(math.mul(dq, rotation));
             }

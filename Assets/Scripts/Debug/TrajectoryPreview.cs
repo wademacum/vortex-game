@@ -19,6 +19,13 @@ namespace Vortex.Debugging
         [SerializeField, Min(0.001f)] private float simulationTimeStep = 0.02f;
         [SerializeField, Min(0.01f)] private float minPointDistance = 0.1f;
 
+        [Header("Performance")]
+        [SerializeField, Min(1f)] private float maxRebuildsPerSecond = 8f;
+        [SerializeField, Min(16)] private int maxRenderedPoints = 256;
+        [SerializeField, Min(0f)] private float rebuildPositionThreshold = 0.75f;
+        [SerializeField, Min(0f)] private float rebuildVelocityThreshold = 0.5f;
+        [SerializeField, Min(0.05f)] private float gravityWellCacheInterval = 1f;
+
         [Header("Line Style")]
         [SerializeField, Min(0.001f)] private float lineWidth = 0.35f;
         [SerializeField] private Color lineStartColor = new Color(0.3f, 1f, 0.95f, 0.95f);
@@ -32,6 +39,9 @@ namespace Vortex.Debugging
         private Vector4 lastKnownFourVelocity;
         private Vector3 lastKnownManualVelocity;
         private bool lastKnownUseBodyFourVelocity;
+        private Vector3[] linePositionBuffer = new Vector3[256];
+        private float nextAllowedRebuildTime;
+        private float nextGravityWellCacheTime;
 
         private void Awake()
         {
@@ -68,7 +78,7 @@ namespace Vortex.Debugging
 
             TryAutoAssignBody();
 
-            bool hasChanged = HasPositionOrVelocityChanged();
+            bool hasChanged = CanRebuildNow() && HasPositionOrVelocityChanged();
             
             if (hasChanged)
             {
@@ -111,7 +121,7 @@ namespace Vortex.Debugging
 
             TryAutoAssignBody();
 
-            bool hasChanged = HasPositionOrVelocityChanged();
+            bool hasChanged = CanRebuildNow() && HasPositionOrVelocityChanged();
             
             if (hasChanged)
             {
@@ -147,19 +157,38 @@ namespace Vortex.Debugging
         private bool HasPositionOrVelocityChanged()
         {
             Vector3 currentPos = transform.position;
-            bool posChanged = currentPos != lastKnownPosition;
+            bool posChanged = Vector3.Distance(currentPos, lastKnownPosition) >= rebuildPositionThreshold;
 
             // Check if velocity source flag changed
             bool sourceChanged = useBodyFourVelocity != lastKnownUseBodyFourVelocity;
 
             // Check manual velocity if not using body velocity
-            bool manualVelChanged = !useBodyFourVelocity && manualInitialVelocity != lastKnownManualVelocity;
+            bool manualVelChanged = !useBodyFourVelocity && Vector3.Distance(manualInitialVelocity, lastKnownManualVelocity) >= rebuildVelocityThreshold;
 
             // Check body velocity if using body velocity
-            bool bodyVelChanged = useBodyFourVelocity && targetBody != null && targetBody.FourVelocity != lastKnownFourVelocity;
+            bool bodyVelChanged = false;
+            if (useBodyFourVelocity && targetBody != null)
+            {
+                Vector4 fv = targetBody.FourVelocity;
+                bodyVelChanged = Vector3.Distance(new Vector3(fv.x, fv.y, fv.z), new Vector3(lastKnownFourVelocity.x, lastKnownFourVelocity.y, lastKnownFourVelocity.z)) >= rebuildVelocityThreshold;
+            }
 
             return posChanged || sourceChanged || manualVelChanged || bodyVelChanged;
         }
+
+        private bool CanRebuildNow()
+        {
+            float now = Time.realtimeSinceStartup;
+            if (now < nextAllowedRebuildTime)
+            {
+                return false;
+            }
+
+            float interval = 1f / Mathf.Max(1f, maxRebuildsPerSecond);
+            nextAllowedRebuildTime = now + interval;
+            return true;
+        }
+
         public void RebuildPreview()
         {
             if (lineRenderer == null)
@@ -168,7 +197,7 @@ namespace Vortex.Debugging
             }
 
             TryAutoAssignBody();
-            CacheGravityWells();
+            CacheGravityWellsIfNeeded();
 
             Vector3 startPosition = transform.position;
             Vector3 startVelocity = ResolveInitialVelocity();
@@ -190,8 +219,31 @@ namespace Vortex.Debugging
                 }
             }
 
-            lineRenderer.positionCount = points.Count;
-            lineRenderer.SetPositions(points.ToArray());
+            int renderCount = Mathf.Min(points.Count, Mathf.Max(16, maxRenderedPoints));
+            EnsureLineBuffer(renderCount);
+
+            if (renderCount == points.Count)
+            {
+                for (int i = 0; i < renderCount; i++)
+                {
+                    linePositionBuffer[i] = points[i];
+                }
+            }
+            else
+            {
+                float stride = (points.Count - 1f) / Mathf.Max(1, renderCount - 1);
+                for (int i = 0; i < renderCount; i++)
+                {
+                    int sourceIndex = Mathf.Clamp(Mathf.RoundToInt(i * stride), 0, points.Count - 1);
+                    linePositionBuffer[i] = points[sourceIndex];
+                }
+            }
+
+            lineRenderer.positionCount = renderCount;
+            for (int i = 0; i < renderCount; i++)
+            {
+                lineRenderer.SetPosition(i, linePositionBuffer[i]);
+            }
         }
 
         [ContextMenu("Debug/Clear Trajectory Preview")]
@@ -250,6 +302,26 @@ namespace Vortex.Debugging
                 {
                     cachedWells.Add(well);
                 }
+            }
+        }
+
+        private void CacheGravityWellsIfNeeded()
+        {
+            float now = Time.realtimeSinceStartup;
+            if (cachedWells.Count > 0 && now < nextGravityWellCacheTime)
+            {
+                return;
+            }
+
+            nextGravityWellCacheTime = now + Mathf.Max(0.05f, gravityWellCacheInterval);
+            CacheGravityWells();
+        }
+
+        private void EnsureLineBuffer(int requiredCount)
+        {
+            if (linePositionBuffer == null || linePositionBuffer.Length < requiredCount)
+            {
+                linePositionBuffer = new Vector3[Mathf.NextPowerOfTwo(requiredCount)];
             }
         }
 

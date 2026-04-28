@@ -1,0 +1,202 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0464382234e44db4a9bebcb31cbcd468, type: 3}
+  m_Name: AsteroidTemplate
+  m_EditorClassIdentifier: Assembly-CSharp::Vortex.Procedural.AsteroidClusterTemplate
+  bodyClass: 6
+  spawnWeight: 1
+  massRange: {x: 252.12926, y: 1438.2651}
+  radiusRange: {x: 19.032108, y: 84.472946}
+  densityRange: {x: 1.6, y: 4.4}
+  rotationRange: {x: 0.08, y: 3.4}
+  temperatureRange: {x: 117.35866, y: 214.37492}
+  albedoRange: {x: 0.05, y: 0.32}
+  generationMode: 1
+  noiseLayerConfig:
+    continent:
+      scale: 0.016249247
+      octaves: 5
+      amplitude: 7.3746095
+      persistence: 0.5821156
+      lacunarity: 2.166328
+      offset: {x: 240.96606, y: 151.89552, z: 97.54709}
+    mountain:
+      scale: 0.047702618
+      octaves: 3
+      amplitude: 3.4432695
+      persistence: 0.4859086
+      lacunarity: 2.1516554
+      offset: {x: 147.06319, y: 231.26991, z: 41.240875}
+    detail:
+      scale: 0.10161774
+      octaves: 2
+      amplitude: 1.9556397
+      persistence: 0.54707456
+      lacunarity: 2.1672397
+      offset: {x: 228.80402, y: 193.07318, z: 195.10231}
+  hasSurface: 1
+  hasAtmosphere: 0
+  hasEventHorizon: 0
+  supportsLanding: 0
+  radiationHazard: 0
+  anomalyChance: 0.05
+  corePressureSupport: 10
+  fractureThreshold: 18
+  collapseThreshold: 24
+  novaThreshold: 1
+  structuralDamping: 4
+  enableMeshNodeDeformation: 1
+  meshTidalStartThreshold: 0.02
+  meshTidalMaxThreshold: 2
+  meshAxialStretchAtFull: 1.6
+  meshRadialSqueezeAtFull: 0.55
+  biomeColorCurves:
+  - serializedVersion: 2
+    key0: {r: 0.1605682, g: 0.15120323, b: 0.151171, a: 1}
+    key1: {r: 0.32523677, g: 0.31227005, b: 0.23179993, a: 1}
+    key2: {r: 0, g: 0, b: 0, a: 0}
+    key3: {r: 0, g: 0, b: 0, a: 0}
+    key4: {r: 0, g: 0, b: 0, a: 0}
+    key5: {r: 0, g: 0, b: 0, a: 0}
+    key6: {r: 0, g: 0, b: 0, a: 0}
+    key7: {r: 0, g: 0, b: 0, a: 0}
+    ctime0: 0
+    ctime1: 65535
+    ctime2: 0
+    ctime3: 0
+    ctime4: 0
+    ctime5: 0
+    ctime6: 0
+    ctime7: 0
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: -1
+    m_NumColorKeys: 2
+    m_NumAlphaKeys: 2
+  - serializedVersion: 2
+    key0: {r: 0.32523677, g: 0.31227005, b: 0.23179993, a: 1}
+    key1: {r: 0.35403153, g: 0.30377856, b: 0.28539285, a: 1}
+    key2: {r: 0, g: 0, b: 0, a: 0}
+    key3: {r: 0, g: 0, b: 0, a: 0}
+    key4: {r: 0, g: 0, b: 0, a: 0}
+    key5: {r: 0, g: 0, b: 0, a: 0}
+    key6: {r: 0, g: 0, b: 0, a: 0}
+    key7: {r: 0, g: 0, b: 0, a: 0}
+    ctime0: 0
+    ctime1: 65535
+    ctime2: 0
+    ctime3: 0
+    ctime4: 0
+    ctime5: 0
+    ctime6: 0
+    ctime7: 0
+    atime0: 0
+    atime1: 65535
+    atime2: 0
+    atime3: 0
+    atime4: 0
+    atime5: 0
+    atime6: 0
+    atime7: 0
+    m_Mode: 0
+    m_ColorSpace: -1
+    m_NumColorKeys: 2
+    m_NumAlphaKeys: 2
+  emissiveRange: {x: 0, y: 1}
+  changeVersion: 21
+  baseShapeConfig:
+    commonOffset: {x: -1.1814799, y: 0.009943199, z: 0.55702174}
+    radiusBias: 0.0273716
+    verticalSquash: 0.80062765
+  asteroidShapeConfig:
+    baseShape:
+      scale: 0.016249247
+      octaves: 5
+      amplitude: 7.3746095
+      persistence: 0.5821156
+      lacunarity: 2.166328
+      offset: {x: 240.96606, y: 151.89552, z: 97.54709}
+    detailA:
+      scale: 0.047702618
+      octaves: 3
+      amplitude: 3.4432695
+      persistence: 0.4859086
+      lacunarity: 2.1516554
+      offset: {x: 147.06319, y: 231.26991, z: 41.240875}
+    detailB:
+      scale: 0.10161774
+      octaves: 2
+      amplitude: 1.9556397
+      persistence: 0.54707456
+      lacunarity: 2.1672397
+      offset: {x: 228.80402, y: 193.07318, z: 195.10231}
+    pitCount: 19
+    pitRadiusRange: {x: 0.028651537, y: 0.115405545}
+    pitDepth: 0.022170184
+    pitRimSharpness: 0.6908571
+    surfaceIrregularity: 0.30578226
+  asteroidShadingConfig:
+    albedoSpotCount: 7
+    albedoSpotRadiusRange: {x: 0.05, y: 0.18}
+    albedoSpotNoise:
+      scale: 0.09
+      octaves: 2
+      amplitude: 1
+      persistence: 0.5
+      lacunarity: 2
+      offset: {x: 17, y: 37, z: 73}
+    surfaceDetailNoise:
+      scale: 0.13
+      octaves: 2
+      amplitude: 1
+      persistence: 0.5
+      lacunarity: 2
+      offset: {x: 101, y: 139, z: 167}
+    metallicVariation: 0.08
+    smoothnessVariation: 0.12
+  moonBiomeConfig:
+    biomeWarpNoise:
+      scale: 0.014076342
+      octaves: 2
+      amplitude: 0.9971094
+      persistence: 0.56453073
+      lacunarity: 2.1850681
+      offset: {x: 248.83235, y: 12.396392, z: 113.44004}
+    mariaBias: 0.3281019
+    highlandBias: 0.37850267
+    colorVariation: 0.19549072
+  moonSurfaceConfig:
+    mainTexture: {fileID: 2800000, guid: 9c22c104e284af144a3405d608b140c1, type: 3}
+    craterRayTexture: {fileID: 2800000, guid: cca326733496e2048ae1a7f83319abbd, type: 3}
+    flatSurfaceTexture: {fileID: 2800000, guid: 395267c95521ba04abd4c5979a0458ab, type: 3}
+    steepSurfaceTexture: {fileID: 2800000, guid: 395267c95521ba04abd4c5979a0458ab, type: 3}
+    flatNormalMap: {fileID: 0}
+    steepNormalMap: {fileID: 0}
+    mainTextureScale: 0.010049408
+    flatSurfaceScale: 0.011569172
+    steepSurfaceScale: 0.016295139
+    microDetailScale: 0.024414377
+    textureBlendStrength: 0.42946494
+    normalBlendStrength: 0.55067647
+    microDetailStrength: 0.49331373
+    flatContrast: 1.1254337
+    steepContrast: 1.0505847
+    albedoSaturation: 0.9117487
+    ejectaBrightness: 0.07868395
+    steepDarkening: 0.26319438

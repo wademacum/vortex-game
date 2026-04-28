@@ -90,8 +90,11 @@ namespace Vortex.Procedural
             BaseShapeConfig baseShapeConfig = default;
             PlanetShapeConfig planetShapeConfig = default;
             MoonShapeConfig moonShapeConfig = default;
+            MoonTerrainNoiseConfig moonTerrainNoiseConfig = default;
+            AsteroidShapeConfig asteroidShapeConfig = default;
+            AsteroidShadingConfig asteroidShadingConfig = default;
             PlanetShadingConfig planetShadingConfig = default;
-            MoonShadingConfig moonShadingConfig = default;
+            MoonBiomeConfig moonBiomeConfig = default;
             MoonSurfaceConfig moonSurfaceConfig = default;
 
             if (template is PlanetTemplate planetTemplate)
@@ -104,27 +107,18 @@ namespace Vortex.Procedural
             {
                 baseShapeConfig = moonTemplate.baseShapeConfig;
                 moonShapeConfig = moonTemplate.moonShapeConfig;
-                moonShadingConfig = moonTemplate.moonShadingConfig;
+                moonTerrainNoiseConfig = moonTemplate.moonTerrainNoiseConfig;
+                moonBiomeConfig = moonTemplate.moonBiomeConfig;
                 moonSurfaceConfig = moonTemplate.moonSurfaceConfig;
             }
-            /*
             else if (template is AsteroidClusterTemplate asteroidTemplate)
             {
                 baseShapeConfig = asteroidTemplate.baseShapeConfig;
-                moonShapeConfig.shape = asteroidTemplate.asteroidShapeConfig.baseShape;
-                moonShapeConfig.ridgeA = asteroidTemplate.asteroidShapeConfig.detailA;
-                moonShapeConfig.ridgeB = asteroidTemplate.asteroidShapeConfig.detailB;
-                moonShadingConfig.biomePointCount = asteroidTemplate.asteroidShadingConfig.albedoSpotCount;
-                moonShadingConfig.biomeRadiusRange = asteroidTemplate.asteroidShadingConfig.albedoSpotRadiusRange;
-                moonShadingConfig.biomeWarpNoise = asteroidTemplate.asteroidShadingConfig.albedoSpotNoise;
-                moonShadingConfig.detailNoise = asteroidTemplate.asteroidShadingConfig.surfaceDetailNoise;
-                moonShadingConfig.detailWarpNoise = asteroidTemplate.asteroidShadingConfig.surfaceDetailNoise;
-                moonShadingConfig.candidatePoolSize = 0.25f;
-                moonShadingConfig.desiredEjectaRays = 0;
-                moonShadingConfig.ejectaRaysScale = 0f;
-                moonSurfaceConfig = asteroidTemplate.asteroidSurfaceConfig;
+                asteroidShapeConfig = asteroidTemplate.asteroidShapeConfig;
+                asteroidShadingConfig = asteroidTemplate.asteroidShadingConfig;
+                moonBiomeConfig = asteroidTemplate.moonBiomeConfig;
+                moonSurfaceConfig = asteroidTemplate.moonSurfaceConfig;
             }
-            */
 
             return new RuntimeBodyData
             {
@@ -158,8 +152,11 @@ namespace Vortex.Procedural
                 baseShapeConfig = baseShapeConfig,
                 planetShapeConfig = planetShapeConfig,
                 moonShapeConfig = moonShapeConfig,
+                moonTerrainNoiseConfig = moonTerrainNoiseConfig,
+                asteroidShapeConfig = asteroidShapeConfig,
+                asteroidShadingConfig = asteroidShadingConfig,
                 planetShadingConfig = planetShadingConfig,
-                moonShadingConfig = moonShadingConfig,
+                moonBiomeConfig = moonBiomeConfig,
                 moonSurfaceConfig = moonSurfaceConfig,
                 biomeColorCurves = template.biomeColorCurves,
                 emissiveRange = template.emissiveRange
@@ -174,8 +171,8 @@ namespace Vortex.Procedural
                     return ShapeModel.Planet;
                 case BodyClass.Moon:
                     return ShapeModel.Moon;
-                //case BodyClass.AsteroidCluster:
-                //    return ShapeModel.Moon;
+                case BodyClass.AsteroidCluster:
+                    return ShapeModel.Asteroid;
                 default:
                     return ShapeModel.Generic;
             }
@@ -189,8 +186,8 @@ namespace Vortex.Procedural
                     return ShadingModel.PlanetBands;
                 case BodyClass.Moon:
                     return ShadingModel.MoonBiomes;
-                //case BodyClass.AsteroidCluster:
-                //    return ShadingModel.MoonBiomes;
+                case BodyClass.AsteroidCluster:
+                    return ShadingModel.MoonBiomes;
                 default:
                     return ShadingModel.VertexColor;
             }

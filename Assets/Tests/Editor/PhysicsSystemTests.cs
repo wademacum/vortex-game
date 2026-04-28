@@ -196,6 +196,15 @@ namespace Vortex.Tests.Editor
             Assert.AreEqual(0f, body.LocalDeltaTime);
         }
 
+        [Test]
+        public void RelativisticBody_ConfigureIntrinsicSpin_UsesFallbackAxis()
+        {
+            RelativisticBody body = CreateBody();
+            body.ConfigureIntrinsicSpin(12f, Vector3.zero);
+
+            Assert.AreEqual(Vector3.up * 12f, body.IntrinsicAngularVelocityDegPerSec);
+        }
+
         // NOTE: RelativisticBody_NoRigidbody_OnAwake is intentionally omitted here.
         // Awake() is not invoked in EditMode NUnit tests; that behaviour is covered
         // by a PlayMode test instead.

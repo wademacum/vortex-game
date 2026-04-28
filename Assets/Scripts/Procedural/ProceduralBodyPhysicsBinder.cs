@@ -20,6 +20,17 @@ namespace Vortex.Procedural
 
             bool allowComponentCreation = Application.isPlaying;
 
+            RelativisticBody relativisticBody = target.GetComponent<RelativisticBody>();
+            if (relativisticBody == null && allowComponentCreation)
+            {
+                relativisticBody = target.AddComponent<RelativisticBody>();
+            }
+
+            if (relativisticBody != null)
+            {
+                relativisticBody.ConfigureIntrinsicSpin(data.rotationSpeed, Vector3.up);
+            }
+
             StructuralResponseBody structural = target.GetComponent<StructuralResponseBody>();
             if (structural == null)
             {

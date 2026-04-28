@@ -29,11 +29,13 @@ namespace Vortex.Procedural
 
         private const string PlanetKernelName = "CSPlanetVoxel";
         private const string MoonKernelName = "CSMoonVoxel";
+        private const string AsteroidKernelName = "CSAsteroidVoxel";
         private const string GenericKernelName = "CSPlanetVoxel";
         private const int ThreadsPerAxis = 8;
 
         private int planetKernelIndex = -1;
         private int moonKernelIndex = -1;
+        private int asteroidKernelIndex = -1;
         private int genericKernelIndex = -1;
         private ComputeBuffer sdfBuffer;
         private ComputeBuffer composeBuffer;
@@ -137,7 +139,8 @@ namespace Vortex.Procedural
 
             PushCommonParams(kernelIndex, bodyData, gridOrigin);
             PushPlanetShapeParams(kernelIndex, bodyData.planetShapeConfig, bodyData.noiseLayerConfig);
-            PushMoonShapeParams(kernelIndex, bodyData.moonShapeConfig);
+            PushMoonShapeParams(kernelIndex, bodyData.moonShapeConfig, bodyData.moonTerrainNoiseConfig);
+            PushAsteroidShapeParams(kernelIndex, bodyData.asteroidShapeConfig);
             PushComposeCommands(kernelIndex, composeCommands);
 
             voxelDataGenerator.SetBuffer(kernelIndex, "_SdfOutput", sdfBuffer);
@@ -194,13 +197,14 @@ namespace Vortex.Procedural
                 return false;
             }
 
-            if (planetKernelIndex >= 0 && moonKernelIndex >= 0 && genericKernelIndex >= 0)
+            if (planetKernelIndex >= 0 && moonKernelIndex >= 0 && asteroidKernelIndex >= 0 && genericKernelIndex >= 0)
             {
                 return true;
             }
 
             if (!voxelDataGenerator.HasKernel(PlanetKernelName) ||
                 !voxelDataGenerator.HasKernel(MoonKernelName) ||
+                !voxelDataGenerator.HasKernel(AsteroidKernelName) ||
                 !voxelDataGenerator.HasKernel(GenericKernelName))
             {
                 return false;
@@ -208,6 +212,7 @@ namespace Vortex.Procedural
 
             planetKernelIndex = voxelDataGenerator.FindKernel(PlanetKernelName);
             moonKernelIndex = voxelDataGenerator.FindKernel(MoonKernelName);
+            asteroidKernelIndex = voxelDataGenerator.FindKernel(AsteroidKernelName);
             genericKernelIndex = voxelDataGenerator.FindKernel(GenericKernelName);
             return true;
         }
@@ -218,6 +223,8 @@ namespace Vortex.Procedural
             {
                 case ShapeModel.Moon:
                     return moonKernelIndex;
+                case ShapeModel.Asteroid:
+                    return asteroidKernelIndex;
                 case ShapeModel.Planet:
                     return planetKernelIndex;
                 default:
@@ -257,16 +264,31 @@ namespace Vortex.Procedural
             voxelDataGenerator.SetFloat("_PlanetMountainBlend", Mathf.Max(0.001f, config.mountainBlend));
         }
 
-        private void PushMoonShapeParams(int kernelIndex, MoonShapeConfig config)
+        private void PushMoonShapeParams(int kernelIndex, MoonShapeConfig config, MoonTerrainNoiseConfig terrainConfig)
         {
-            PushNoiseLayer("MoonShape", config.shape);
-            PushNoiseLayer("MoonRidgeA", config.ridgeA);
-            PushNoiseLayer("MoonRidgeB", config.ridgeB);
+            PushNoiseLayer("MoonShape", terrainConfig.macroShape);
+            PushNoiseLayer("MoonRidgeA", terrainConfig.ridgeNoise);
+            PushNoiseLayer("MoonRidgeB", terrainConfig.detailNoise);
+            PushNoiseLayer("MoonWarp", terrainConfig.warpNoise);
+            voxelDataGenerator.SetFloat("_MoonWarpStrength", Mathf.Max(0f, terrainConfig.warpStrength));
+            voxelDataGenerator.SetFloat("_MoonMacroStrength", Mathf.Max(0f, terrainConfig.macroStrength));
+            voxelDataGenerator.SetFloat("_MoonRidgeStrength", Mathf.Max(0f, terrainConfig.ridgeStrength));
+            voxelDataGenerator.SetFloat("_MoonDetailStrength", Mathf.Max(0f, terrainConfig.detailStrength));
             voxelDataGenerator.SetInt("_MoonCraterCount", Mathf.Max(0, config.craterCount));
             voxelDataGenerator.SetVector("_MoonCraterRadiusRange", config.craterRadiusRange);
+            voxelDataGenerator.SetFloat("_MoonCraterRadiusBias", Mathf.Clamp01(config.craterRadiusBias));
             voxelDataGenerator.SetFloat("_MoonCraterDepth", Mathf.Max(0f, config.craterDepth));
+            voxelDataGenerator.SetVector("_MoonCraterFloorHeightRange", config.craterFloorHeightRange);
+            voxelDataGenerator.SetFloat("_MoonCraterFloorRadius", Mathf.Clamp01(config.craterFloorRadius));
+            voxelDataGenerator.SetFloat("_MoonCraterWallSmoothness", Mathf.Max(0.001f, config.craterWallSmoothness));
+            voxelDataGenerator.SetFloat("_MoonCraterRimWidth", Mathf.Max(0.001f, config.craterRimWidth));
+            voxelDataGenerator.SetFloat("_MoonCraterRimHeight", Mathf.Max(0f, config.craterRimHeight));
             voxelDataGenerator.SetFloat("_MoonCraterRimSharpness", Mathf.Max(0.01f, config.craterRimSharpness));
-            voxelDataGenerator.SetFloat("_MoonCraterNoiseScale", Mathf.Max(0.001f, config.craterNoiseScale));
+            voxelDataGenerator.SetFloat("_MoonCraterEdgeWarpFrequency", Mathf.Max(0.001f, config.craterEdgeWarpFrequency));
+            voxelDataGenerator.SetFloat("_MoonCraterEdgeWarpStrength", Mathf.Max(0f, config.craterEdgeWarpStrength));
+            voxelDataGenerator.SetFloat("_MoonCraterCrowdingRadiusScale", Mathf.Clamp01(config.craterCrowdingRadiusScale));
+            voxelDataGenerator.SetFloat("_MoonCraterDistributionJitter", Mathf.Clamp01(config.craterDistributionJitter));
+            voxelDataGenerator.SetFloat("_MoonYoungCraterFraction", Mathf.Clamp01(config.youngCraterFraction));
         }
 
         private void PushComposeCommands(int kernelIndex, SdfComposeCommand[] composeCommands)
@@ -312,6 +334,18 @@ namespace Vortex.Procedural
             voxelDataGenerator.SetVector($"_{prefix}Offset", new Vector4(layer.offset.x, layer.offset.y, layer.offset.z, 0f));
         }
 
+        private void PushAsteroidShapeParams(int kernelIndex, AsteroidShapeConfig config)
+        {
+            PushNoiseLayer("AsteroidBaseShape", config.baseShape);
+            PushNoiseLayer("AsteroidDetailA", config.detailA);
+            PushNoiseLayer("AsteroidDetailB", config.detailB);
+            voxelDataGenerator.SetInt("_AsteroidPitCount", Mathf.Max(0, config.pitCount));
+            voxelDataGenerator.SetVector("_AsteroidPitRadiusRange", config.pitRadiusRange);
+            voxelDataGenerator.SetFloat("_AsteroidPitDepth", Mathf.Max(0f, config.pitDepth));
+            voxelDataGenerator.SetFloat("_AsteroidPitRimSharpness", Mathf.Max(0.01f, config.pitRimSharpness));
+            voxelDataGenerator.SetFloat("_AsteroidSurfaceIrregularity", Mathf.Max(0f, config.surfaceIrregularity));
+        }
+
         private void ReleaseBuffers()
         {
             if (sdfBuffer != null)
@@ -331,6 +365,7 @@ namespace Vortex.Procedural
             cpuReadback = null;
             planetKernelIndex = -1;
             moonKernelIndex = -1;
+            asteroidKernelIndex = -1;
             genericKernelIndex = -1;
         }
 

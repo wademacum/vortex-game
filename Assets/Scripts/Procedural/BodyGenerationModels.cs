@@ -7,7 +7,8 @@ namespace Vortex.Procedural
     {
         Generic = 0,
         Planet = 1,
-        Moon = 2
+        Moon = 2,
+        Asteroid = 3
     }
 
     public enum ShadingModel
@@ -41,14 +42,34 @@ namespace Vortex.Procedural
     [Serializable]
     public struct MoonShapeConfig
     {
-        public NoiseLayer shape;
-        public NoiseLayer ridgeA;
-        public NoiseLayer ridgeB;
         public int craterCount;
         public Vector2 craterRadiusRange;
+        [Range(0f, 1f)] public float craterRadiusBias;
         public float craterDepth;
+        public Vector2 craterFloorHeightRange;
+        [Range(0f, 1f)] public float craterFloorRadius;
+        public float craterWallSmoothness;
+        public float craterRimWidth;
+        public float craterRimHeight;
         public float craterRimSharpness;
-        public float craterNoiseScale;
+        public float craterEdgeWarpFrequency;
+        public float craterEdgeWarpStrength;
+        [Range(0f, 1f)] public float craterCrowdingRadiusScale;
+        [Range(0f, 1f)] public float craterDistributionJitter;
+        [Range(0f, 1f)] public float youngCraterFraction;
+    }
+
+    [Serializable]
+    public struct MoonTerrainNoiseConfig
+    {
+        public NoiseLayer macroShape;
+        public NoiseLayer ridgeNoise;
+        public NoiseLayer detailNoise;
+        public NoiseLayer warpNoise;
+        public float warpStrength;
+        public float macroStrength;
+        public float ridgeStrength;
+        public float detailStrength;
     }
 
     [Serializable]
@@ -85,16 +106,12 @@ namespace Vortex.Procedural
     }
 
     [Serializable]
-    public struct MoonShadingConfig
+    public struct MoonBiomeConfig
     {
-        public int biomePointCount;
-        public Vector2 biomeRadiusRange;
         public NoiseLayer biomeWarpNoise;
-        public NoiseLayer detailNoise;
-        public NoiseLayer detailWarpNoise;
-        public float candidatePoolSize;
-        public int desiredEjectaRays;
-        public float ejectaRaysScale;
+        public float mariaBias;
+        public float highlandBias;
+        public float colorVariation;
     }
 
     [Serializable]
@@ -104,10 +121,18 @@ namespace Vortex.Procedural
         public Texture2D craterRayTexture;
         public Texture2D flatSurfaceTexture;
         public Texture2D steepSurfaceTexture;
+        public Texture2D flatNormalMap;
+        public Texture2D steepNormalMap;
         public float mainTextureScale;
         public float flatSurfaceScale;
         public float steepSurfaceScale;
+        public float microDetailScale;
         public float textureBlendStrength;
+        public float normalBlendStrength;
+        public float microDetailStrength;
+        public float flatContrast;
+        public float steepContrast;
+        public float albedoSaturation;
         public float ejectaBrightness;
         public float steepDarkening;
     }
